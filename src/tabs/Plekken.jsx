@@ -103,7 +103,7 @@ export default function Plekken({ spots, onOpen, onNew, here }) {
           <div className="spot-line">
             <div className="spot-emoji">{kindOf(spot.kind).emoji}</div>
             <div className="grow">
-              <div className="strong truncate">{spot.name}</div>
+              <div className="placename truncate">{spot.name}</div>
               <div className="tiny muted">
                 {spot.rating > 0 && <span style={{ color: 'var(--ember)' }}>{'★'.repeat(spot.rating)} </span>}
                 {here && `${formatDistance(distanceMeters(here, spot))} hiervandaan`}

@@ -49,7 +49,7 @@ export function Note({ tone = 'info', children }) {
 
 export function Empty({ art, title, children }) {
   return (
-    <div className="empty">
+    <div className="empty topo">
       <div className="art">{art}</div>
       <h3>{title}</h3>
       <p>{children}</p>

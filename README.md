@@ -4,8 +4,15 @@ Mobile-first web-app voor je geheime kampeerplekken. Alles staat privé, en per
 plek bepaal je zelf **hoe precies** iemand anders hem te zien krijgt.
 
 Zelfde opzet als [CATANIA](https://github.com/Brokkert/catan) en
-[Paklijst](https://github.com/Brokkert/list): Vite + React, een gratis
-Supabase-project erachter, en gratis hosting op GitHub Pages.
+[Paklijst](https://github.com/Brokkert/list) — Vite + React, een gratis
+Supabase-project erachter, gratis hosting op GitHub Pages — maar met een eigen
+gezicht: **veldboek**. Warm papier en inkt, roest als accent, haarlijnen in
+plaats van dikke randen, en hoogtelijnen als watermerk. Plaatsnamen staan in een
+schreefletter zoals een kaartlabel, coördinaten en meetwaarden in mono, want dat
+zijn ze. 's Nachts wisselt hetzelfde schrift naar diepe inkt met perkament.
+
+Geen webfonts: Camp moet in het bos opengaan zonder bereik, en dan wil je niet op
+een letter van Google staan wachten.
 
 ---
 
@@ -54,8 +61,8 @@ build vallen zodra er één punt buiten zijn straal komt.
   blijven bewaard, zodat de kaart niet leeg is als je er zonder bereik staat.
 - **🌦️ Weer en hoogte** — zeven dagen vooruit per plek, en de hoogte wordt
   automatisch opgezocht. Via Open-Meteo, gratis en zonder sleutel.
-- **🌙 Nacht- en dagthema** — donker als uitgangspunt, want je kijkt hier meestal
-  in een tent naar.
+- **📜 Papier en nacht** — papier is het uitgangspunt; één tik verderop staat de
+  nachtstand voor in de tent.
 
 ## Alles gratis
 
@@ -137,6 +144,7 @@ src/
   tabs/       Kaart, Plekken, Gedeeld, Mensen, Instellingen
   views/      Login, SharedView (wat de ontvanger van een link ziet)
   data/       taxonomy.js — soorten plek, kenmerken, juridische status
+  styles.css  het hele uiterlijk; de hoogtelijnen zijn een ingebakken SVG
 supabase/     schema.sql, test.sql, run-tests.sh
 ```
 
@@ -151,6 +159,11 @@ Elke push naar `main` bouwt en publiceert naar GitHub Pages via
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). De tests moeten
 groen zijn voordat er iets live gaat.
 
-GitHub Pages op een gratis account vereist een **publieke** repo. Dat is hier
-geen bezwaar: er staat geen enkel geheim in de broncode. Je plekken staan in
-jouw database, achter jouw login.
+GitHub Pages vereist op een gratis account een **publieke** repo — net als bij
+CATANIA en Paklijst. Dat kan hier veilig: er staat geen enkel geheim in de
+broncode. De publishable key is bedoeld om openbaar te zijn en beschermt niets;
+dat doet Row Level Security. Je plekken staan in jouw database, achter jouw
+login.
+
+Wil je de repo toch privé houden, dan serveren Cloudflare Pages en Netlify ook
+gratis vanaf een gesloten repo; dan moet `deploy.yml` daarheen wijzen.

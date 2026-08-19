@@ -11,7 +11,7 @@ import { precisionLabel } from '../lib/fuzz.js';
 const THEME_KEY = 'camp:theme';
 
 export default function Instellingen({ user, profile, spots, onImported, onReloadProfile }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'light');
   const [config, setConfig] = useState(readConfig);
   const [url, setUrl] = useState(config.url);
   const [key, setKey] = useState(config.key);

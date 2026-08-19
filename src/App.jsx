@@ -60,7 +60,7 @@ export default function App() {
 
   // Thema meteen zetten, nog voor het eerste scherm.
   useEffect(() => {
-    document.documentElement.dataset.theme = localStorage.getItem('camp:theme') || 'dark';
+    document.documentElement.dataset.theme = localStorage.getItem('camp:theme') || 'light';
   }, []);
 
   const refreshProfile = useCallback(() => {

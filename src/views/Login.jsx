@@ -42,9 +42,10 @@ export default function Login({ configured, onSkip }) {
   const lokaal = localVaultSize();
 
   return (
-    <div className="login-wrap">
+    <div className="login-wrap topo">
       <div className="logo">⛺</div>
       <h1>Camp</h1>
+      <div className="rule" />
       <p className="tag">
         Je geheime plekken op één kaart.
         <br />

@@ -30,7 +30,7 @@ export default function Gedeeld({ shared, loading }) {
             <div className="spot-line">
               <div className="spot-emoji">{kind.emoji}</div>
               <div className="grow">
-                <div className="strong truncate">{spot.name}</div>
+                <div className="placename truncate">{spot.name}</div>
                 <div className="tiny muted">
                   van {spot.owner?.emoji} {spot.owner?.name || spot.owner?.handle}
                   {' · '}

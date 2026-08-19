@@ -1,0 +1,50 @@
+name: Supabase keepalive
+
+# Supabase pauzeert gratis projecten bij te weinig databaseactiviteit. Zelfde
+# aanpak als bij Paklijst: dagelijks een échte schrijfactie, want een enkele
+# lees-query lijkt niet altijd mee te tellen.
+#
+# Vul hieronder je eigen project-URL en publishable key in (Settings → API).
+# Beide horen openbaar te zijn; de beveiliging zit in Row Level Security.
+#
+# Let op: GitHub zet geplande workflows uit na 60 dagen zonder activiteit in de
+# repo. Als je Camp dan ook niet gebruikt, kan het project alsnog pauzeren.
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+env:
+  SUPABASE_URL: ''
+  SUPABASE_KEY: ''
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Overslaan als er nog niets is ingevuld
+        id: check
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "Nog geen Supabase-project ingesteld; niets te doen."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Schrijven (upsert van een keepalive-rij)
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          curl -sf -X POST "$SUPABASE_URL/rest/v1/camp_keepalive" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=merge-duplicates" \
+            -d "{\"id\":\"keepalive\",\"pinged_at\":\"$(date -u +%FT%TZ)\"}" \
+            -o /dev/null
+
+      - name: Lezen (select)
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          curl -sf "$SUPABASE_URL/rest/v1/camp_keepalive?select=id&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -o /dev/null

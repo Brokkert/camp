@@ -3,8 +3,11 @@
 import { chromium } from 'playwright';
 
 const SHOT = process.env.SHOT_DIR || '/tmp/camp-smoke';
+const BASIS = process.env.CAMP_URL || 'http://localhost:4173';
+// Normaal pakt Playwright zelf de juiste browser (na `npx playwright install`).
+// CHROME_PATH is er voor omgevingen waar er al een chromium klaarstaat.
 const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
   args: ['--no-sandbox'],
 });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -19,7 +22,7 @@ const stap = async (naam, fn) => {
 };
 
 await stap('01-login', async () => {
-  await page.goto('http://localhost:4181/', { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASIS}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('h1');
 });
 
@@ -97,7 +100,7 @@ await stap('09-lichtthema', async () => {
 
 await stap('10-kapotte-deellink', async () => {
   await page.locator('.chip', { hasText: 'Nacht' }).click();
-  await page.goto('http://localhost:4181/#/s/bestaatniet', { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASIS}/#/s/bestaatniet`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
 });
 console.log('   melding:', (await page.locator('.note').first().textContent().catch(() => '—')));

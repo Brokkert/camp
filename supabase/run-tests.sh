@@ -28,7 +28,4 @@ PSQL=(psql -h "$SOCK" -p "$PORT" -U postgres -d camp -v ON_ERROR_STOP=1 -q)
 "${PSQL[@]}" -f "$HERE/test.sql"
 
 echo
-echo "Alle controles gedraaid. Lees de kolommen hierboven na: 'binnen_straal',"
-echo "'lat_vervaagd', 'vervaagd' en 'zelfde_seed_zelfde_punt' horen t te zijn,"
-echo "en 'plekken_zichtbaar', 'shares_zichtbaar', 'gedeeld_met_buitenstaander'"
-echo "en 'na_intrekken' horen 0 te zijn."
+echo "Klaar: schema geladen en alle harde controles geslaagd."

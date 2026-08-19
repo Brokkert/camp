@@ -164,3 +164,90 @@ begin;
 set local role anon;
 select public.camp_open_share('geheim-token-123','ourthe') -> 'error' as link_na_intrekken;
 commit;
+
+-- ============================================================================
+-- Harde controles
+-- ============================================================================
+-- De uitvoer hierboven is om te lezen; dit blok is om op af te gaan. Elke
+-- regel die niet klopt laat psql met een foutcode stoppen, zodat de workflow
+-- rood wordt in plaats van dat iemand een kolom over het hoofd ziet.
+\echo ''
+\echo '### Harde controles'
+
+do $$
+declare
+  straal double precision;
+  pt     double precision[];
+  afstand double precision;
+  prec   text;
+begin
+  -- 1. Vervaging blijft binnen de straal, over veel verschillende zaden.
+  foreach prec in array array['exact','fine','area','region'] loop
+    straal := public.camp_precision_radius(prec);
+    for i in 1..250 loop
+      pt := public.camp_fuzz_point(50.2, 5.5, prec || ':' || i::text, straal);
+      afstand := 6371000 * acos(least(1,
+        sin(radians(50.2)) * sin(radians(pt[1])) +
+        cos(radians(50.2)) * cos(radians(pt[1])) * cos(radians(pt[2] - 5.5))));
+      if afstand > straal + 1 then
+        raise exception 'Vervaging lekt: % kwam % m ver bij een straal van % m',
+          prec, round(afstand::numeric, 1), straal;
+      end if;
+    end loop;
+  end loop;
+
+  -- 2. "exact" mag juist niets verschuiven.
+  if public.camp_fuzz_point(50.2, 5.5, 'wat dan ook', 0) <> array[50.2, 5.5]::double precision[] then
+    raise exception 'Precies delen zou het punt met rust moeten laten';
+  end if;
+
+  -- 3. Dezelfde share hoort altijd hetzelfde punt te tonen.
+  if public.camp_fuzz_point(50.2, 5.5, 'zaad', 2000)
+     <> public.camp_fuzz_point(50.2, 5.5, 'zaad', 2000) then
+    raise exception 'Vervaging is niet stabiel; met verversen is het echte punt uit te middelen';
+  end if;
+
+  raise notice 'Vervaging: in orde';
+end;
+$$;
+
+-- 4. Een buitenstaander ziet niets, via geen enkele weg.
+begin;
+set local role authenticated;
+set local camp.test_uid = '33333333-3333-3333-3333-333333333333';
+do $$
+begin
+  if (select count(*) from public.camp_spots) <> 0 then
+    raise exception 'Een ander account kan camp_spots lezen';
+  end if;
+  if (select count(*) from public.camp_shares) <> 0 then
+    raise exception 'Een ander account kan camp_shares lezen';
+  end if;
+  if (select count(*) from public.camp_visits) <> 0 then
+    raise exception 'Een ander account kan camp_visits lezen';
+  end if;
+  if jsonb_array_length(public.camp_shared_with_me()) <> 0 then
+    raise exception 'Een buitenstaander krijgt gedeelde plekken te zien';
+  end if;
+  raise notice 'Afscherming tussen accounts: in orde';
+end;
+$$;
+commit;
+
+-- 5. Anoniem, en na intrekken, komt er niets meer uit een link.
+begin;
+set local role anon;
+do $$
+begin
+  if public.camp_open_share('geheim-token-123', 'ourthe') ->> 'error' <> 'revoked' then
+    raise exception 'Een ingetrokken link geeft nog gegevens terug';
+  end if;
+  if public.camp_open_share('bestaat-niet') ->> 'error' <> 'not_found' then
+    raise exception 'Een onbekend token geeft iets anders dan not_found';
+  end if;
+  raise notice 'Deel-links: in orde';
+end;
+$$;
+commit;
+
+\echo 'Alle harde controles geslaagd.'

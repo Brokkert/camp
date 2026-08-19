@@ -162,11 +162,17 @@ export function formatDms(lat, lng) {
   const one = (value, [pos, neg]) => {
     const hemi = value >= 0 ? pos : neg;
     const abs = Math.abs(value);
-    const d = Math.floor(abs);
-    const mFloat = (abs - d) * 60;
-    const m = Math.floor(mFloat);
-    const s = ((mFloat - m) * 60).toFixed(1);
-    return `${d}${DEG}${String(m).padStart(2, '0')}'${String(s).padStart(4, '0')}"${hemi}`;
+    let d = Math.floor(abs);
+    // Eerst de seconden afronden en dan pas verdelen. Andersom krijg je
+    // 52°37'60.0" waar 52°38'00.0" hoort te staan.
+    let totalSeconds = Math.round((abs - d) * 3600 * 10) / 10;
+    let m = Math.floor(totalSeconds / 60);
+    let s = totalSeconds - m * 60;
+    if (m >= 60) {
+      m -= 60;
+      d += 1;
+    }
+    return `${d}${DEG}${String(m).padStart(2, '0')}'${s.toFixed(1).padStart(4, '0')}"${hemi}`;
   };
   return `${one(lat, ['N', 'S'])} ${one(lng, ['E', 'W'])}`;
 }

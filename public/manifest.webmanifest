@@ -1,0 +1,19 @@
+{
+  "name": "Camp — je geheime kampeerplekken",
+  "short_name": "Camp",
+  "description": "Bewaar je kampeerplekken en deel ze zo precies als je zelf wilt.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1410",
+  "theme_color": "#0d1410",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

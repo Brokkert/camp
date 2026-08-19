@@ -10,6 +10,19 @@ export default defineConfig({
   define: {
     __BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC'),
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Maplibre is verreweg het grootste deel en verandert bijna nooit.
+        // Apart houden scheelt de gebruiker een download van een halve MB bij
+        // elke update van de app zelf, en de service worker kan het los cachen.
+        manualChunks: {
+          maplibre: ['maplibre-gl'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

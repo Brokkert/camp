@@ -87,6 +87,13 @@ describe('weergeven', () => {
     expect(formatDms(52.3701, 4.895)).toMatch(/^52°22'.*N 4°53'.*E$/);
   });
 
+  it('laat seconden doorrollen naar minuten in plaats van 60.0 te tonen', () => {
+    // 52.63333 is 52°38'00.0" — niet 52°37'60.0"
+    expect(formatDms(52.63333, 4.61667)).toBe('52°38\'00.0"N 4°37\'00.0"E');
+    expect(formatDms(52.99999, 5)).not.toContain("60.0");
+    expect(formatDms(-0.00001, -0.00001)).not.toContain('60.0');
+  });
+
   it('kan zijn eigen DMS weer teruglezen', () => {
     const round = parseCoordinates(formatDms(50.2, 5.5));
     near(round.lat, 50.2, 1e-4);

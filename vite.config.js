@@ -1,0 +1,17 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+// Anders dan CATANIA/Paklijst bouwen we hier géén single-file HTML: maplibre is
+// te groot om te inlinen, en de service worker (offline-modus in het veld) heeft
+// juist losse, cachebare bestanden nodig.
+export default defineConfig({
+  plugins: [react()],
+  base: './',
+  define: {
+    __BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC'),
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
+});

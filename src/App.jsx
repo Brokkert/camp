@@ -161,6 +161,7 @@ export default function App() {
             onDrop={(point) => setEditing({ ...point })}
             follow={follow}
             here={here}
+            onLocated={setHere}
           />
         )}
 

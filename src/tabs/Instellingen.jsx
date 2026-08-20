@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Field, Note, Sheet, Confirm } from '../components/ui.jsx';
+import { Field, Note, Sheet, Confirm, copyText } from '../components/ui.jsx';
 import { readConfig, writeConfig } from '../lib/config.js';
 import { resetClient } from '../lib/supabase.js';
 import { signOut, saveProfile } from '../lib/auth.js';
 import { importSpots, toGpx, toKml, toGeoJson, downloadFile } from '../lib/geo.js';
 import { migrateLocalToCloud, localVaultSize } from '../lib/vault.js';
 import { listAllShares, revokeShare, shareStatus } from '../lib/sharing.js';
+import { createInvite, listInvites, revokeInvite, inviteStatus } from '../lib/invites.js';
 import { precisionLabel } from '../lib/fuzz.js';
 
 const THEME_KEY = 'camp:theme';
@@ -20,6 +21,8 @@ export default function Instellingen({ user, profile, spots, onImported, onReloa
   const [shares, setShares] = useState([]);
   const [showShares, setShowShares] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const [showInvites, setShowInvites] = useState(false);
+  const [invites, setInvites] = useState([]);
   const fileInput = useRef(null);
 
   useEffect(() => {
@@ -28,7 +31,9 @@ export default function Instellingen({ user, profile, spots, onImported, onReloa
   }, [theme]);
 
   useEffect(() => {
-    if (user) listAllShares().then(setShares).catch(() => {});
+    if (!user) return;
+    listAllShares().then(setShares).catch(() => {});
+    listInvites().then(setInvites).catch(() => {});
   }, [user]);
 
   const saveConnection = () => {
@@ -130,6 +135,25 @@ export default function Instellingen({ user, profile, spots, onImported, onReloa
                 </div>
               </div>
               <button className="btn sm" onClick={() => setShowShares(true)}>Bekijken</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {user && (
+        <>
+          <div className="section-title">Mensen uitnodigen</div>
+          <div className="card tight">
+            <div className="row">
+              <div className="grow">
+                <div className="strong small">
+                  {invites.filter((i) => inviteStatus(i).tone === 'good').length} geldige uitnodigingen
+                </div>
+                <div className="tiny muted">
+                  Aanmelden kan alleen via zo'n link — de voorpagina biedt het niet aan.
+                </div>
+              </div>
+              <button className="btn sm" onClick={() => setShowInvites(true)}>Beheren</button>
             </div>
           </div>
         </>
@@ -298,6 +322,14 @@ export default function Instellingen({ user, profile, spots, onImported, onReloa
         </Sheet>
       )}
 
+      {showInvites && (
+        <InviteSheet
+          invites={invites}
+          onClose={() => setShowInvites(false)}
+          onChanged={async () => setInvites(await listInvites())}
+        />
+      )}
+
       {confirmWipe && (
         <Confirm
           title="Lokale kluis wissen?"
@@ -311,5 +343,141 @@ export default function Instellingen({ user, profile, spots, onImported, onReloa
         />
       )}
     </>
+  );
+}
+
+
+/**
+ * Uitnodigingen beheren. De code is maar één keer zichtbaar: daarna staat er
+ * alleen nog een hash in de database, net als bij een deel-link.
+ */
+function InviteSheet({ invites, onClose, onChanged }) {
+  const [label, setLabel] = useState('');
+  const [maxUses, setMaxUses] = useState('1');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [fresh, setFresh] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState(null);
+
+  const maak = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { url } = await createInvite({
+        label: label.trim(),
+        maxUses: maxUses ? Number(maxUses) : null,
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+      });
+      setFresh(url);
+      setLabel('');
+      onChanged();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet title="Mensen uitnodigen" onClose={onClose}>
+      {error && <Note tone="bad">{error}</Note>}
+
+      {fresh ? (
+        <>
+          <Note tone="good">
+            Klaar. <strong>Stuur hem nu door</strong> — de code staat nergens meer leesbaar
+            opgeslagen, ook niet in de database.
+          </Note>
+          <div className="share-link">
+            <span className="url">{fresh}</span>
+            <button
+              className="btn sm primary"
+              onClick={async () => {
+                setCopied(await copyText(fresh));
+                setTimeout(() => setCopied(false), 2200);
+              }}
+            >
+              {copied ? '✓' : 'Kopieer'}
+            </button>
+          </div>
+          <button className="btn wide" style={{ marginTop: 12 }} onClick={() => setFresh(null)}>
+            Nog een uitnodiging
+          </button>
+        </>
+      ) : (
+        <>
+          <Note tone="info">
+            De voorpagina biedt geen aanmelden aan, dus niemand loopt er per ongeluk tegenaan.
+            Wie deze link krijgt, kan wel een account maken.
+          </Note>
+
+          <Field label="Voor wie?" hint="Alleen voor jezelf, om ze uit elkaar te houden.">
+            <input
+              className="input"
+              value={label}
+              placeholder="Jasper"
+              onChange={(e) => setLabel(e.target.value)}
+            />
+          </Field>
+
+          <div className="row" style={{ gap: 10 }}>
+            <Field label="Hoe vaak bruikbaar">
+              <input
+                className="input"
+                type="number"
+                min="1"
+                value={maxUses}
+                placeholder="onbeperkt"
+                onChange={(e) => setMaxUses(e.target.value)}
+              />
+            </Field>
+            <Field label="Verloopt op">
+              <input
+                className="input"
+                type="date"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <button className="btn primary wide" onClick={maak} disabled={busy}>
+            {busy ? <span className="spinner" /> : '✉️'} Uitnodiging maken
+          </button>
+        </>
+      )}
+
+      {invites.length > 0 && <div className="section-title">Uitgedeeld</div>}
+      {invites.map((invite) => {
+        const status = inviteStatus(invite);
+        return (
+          <div className="card tight" key={invite.id}>
+            <div className="row">
+              <div className="grow">
+                <div className="strong small truncate">{invite.label || 'Zonder naam'}</div>
+                <div className="tiny muted">
+                  {invite.used_count}× gebruikt
+                  {invite.max_uses ? ` van ${invite.max_uses}` : ''}
+                </div>
+              </div>
+              <span className={`chip readonly tiny tone-${status.tone}`}>{status.label}</span>
+            </div>
+            {!invite.revoked_at && (
+              <button
+                className="btn sm danger wide"
+                style={{ marginTop: 8 }}
+                onClick={async () => {
+                  await revokeInvite(invite.id);
+                  onChanged();
+                }}
+              >
+                Intrekken
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </Sheet>
   );
 }

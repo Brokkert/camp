@@ -7,8 +7,11 @@ create role service_role nologin;
 
 create schema if not exists auth;
 create table auth.users (
-  id    uuid primary key default gen_random_uuid(),
-  email text
+  id                 uuid primary key default gen_random_uuid(),
+  email              text,
+  -- Hier zet Supabase mee wat de client bij het aanmelden meegeeft via
+  -- options.data. Camp gebruikt dat voor de uitnodigingscode.
+  raw_user_meta_data jsonb
 );
 -- In Supabase leest auth.uid() de JWT; hier lezen we een sessie-variabele.
 create or replace function auth.uid() returns uuid language sql stable as $$

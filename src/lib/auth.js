@@ -47,12 +47,25 @@ function redirectTarget() {
   return `${origin}${pathname}`;
 }
 
-export async function sendMagicLink(email) {
+/**
+ * Stuurt een inlogmail.
+ *
+ * Zonder uitnodigingscode maakt dit nooit een nieuwe gebruiker aan
+ * (shouldCreateUser: false) — een onbekend adres krijgt gewoon een foutmelding.
+ * Mét code mag er wel een account bij, en gaat de code mee in options.data zodat
+ * de trigger in de database hem kan controleren.
+ */
+export async function sendMagicLink(email, { invite = null } = {}) {
   const supabase = getClient();
   if (!supabase) throw new Error('Camp is nog niet aan een Supabase-project gekoppeld.');
+
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim(),
-    options: { emailRedirectTo: redirectTarget() },
+    options: {
+      emailRedirectTo: redirectTarget(),
+      shouldCreateUser: Boolean(invite),
+      ...(invite ? { data: { invite } } : {}),
+    },
   });
   if (error) throw error;
 }

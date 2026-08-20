@@ -89,27 +89,31 @@ alle beveiliging.
 > Voor een gedeelde link moeten ze wél in `config.js` staan, want de ontvanger
 > heeft jouw browser niet.
 
-## 5. Wat open aanmelden betekent
+## 5. Aanmelden gaat alleen via een uitnodiging
 
 Je publishable key komt in een openbare repo en in de JavaScript die elke
-bezoeker binnenhaalt. Iedereen die hem oppikt kan daarmee een **account** maken
-in jouw project. Dat is een bewuste keuze en prima; dit is wat het wel en niet
-betekent.
+bezoeker binnenhaalt. Zonder maatregel kan iedereen die hem oppikt een account
+maken in jouw project. Camp lost dat in twee lagen op.
 
-**Wat zo iemand niet kan.** Van jouw plekken ziet hij niets. Zonder account
-weigert de database elke tabel; mét account komt hij wel langs de rechten maar
-filtert Row Level Security alles weg — nul rijen, alleen zijn eigen kluis. Dat
-staat getoetst in `supabase/test.sql`.
+**Laag 1 — de voorpagina biedt geen aanmelden aan.** Wie op de site belandt ziet
+alleen een inlogveld voor bestaande gebruikers. Een onbekend adres krijgt netjes
+te horen dat aanmelden via een uitnodiging gaat. Dit houdt bots tegen die het web
+afstruinen, meer niet: het is verstoppen, geen slot.
 
-**Wat hij wel kan.** Een eigen kluis vullen, en foto's uploaden naar zijn eigen
-map. Dat gaat van jouw gratis quotum af (500 MB database, 1 GB opslag). Daarom
-staat er een grens op de bucket: maximaal 5 MB per bestand en alleen
-afbeeldingen. De app verkleint foto's zelf tot zo'n 200 kB, dus je merkt er
-niets van.
+**Laag 2 — de database eist een geldige code.** Dit is het slot. De trigger op
+`auth.users` weigert elke nieuwe gebruiker zonder geldige uitnodigingscode, ook
+als iemand het formulier overslaat en de auth-endpoint rechtstreeks aanroept.
+Codes kunnen aflopen, een maximum aantal keer bruikbaar zijn, en ingetrokken
+worden — en er staat alleen een hash van in de database, net als bij een
+deel-link.
 
-**Als je er later toch vanaf wilt**, staat de knop onder **Authentication →
-Sign In / Providers → Email**: zet *Allow new users to sign up* uit en nodig je
-vrienden handmatig uit via **Authentication → Users → Invite**.
+> **Meld jezelf als eerste aan.** De allereerste gebruiker mag zonder
+> uitnodiging binnen, anders kun je nooit beginnen. Doe dat dus meteen nadat je
+> `schema.sql` hebt gedraaid; daarna is er voor iedereen een code nodig.
+
+Vrienden uitnodigen doe je daarna in de app: **Meer → Mensen uitnodigen → Beheren**.
+Je krijgt een link die je doorstuurt. Wil je iemand alleen een plek laten zien,
+dan hoeft dat helemaal niet — een deel-link werkt zonder account.
 
 ### Eén ding om even na te kijken
 

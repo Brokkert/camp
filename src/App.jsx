@@ -33,12 +33,13 @@ function useHashRoute() {
     return () => window.removeEventListener('hashchange', onChange);
   }, []);
   const shareToken = hash.match(/^#\/s\/(.+)$/)?.[1] || null;
-  return { shareToken, clear: () => { window.location.hash = ''; } };
+  const joinCode = hash.match(/^#\/join\/(.+)$/)?.[1] || null;
+  return { shareToken, joinCode, clear: () => { window.location.hash = ''; } };
 }
 
 export default function App() {
   const { session, ready, user } = useSession();
-  const { shareToken, clear } = useHashRoute();
+  const { shareToken, joinCode, clear } = useHashRoute();
   const [tab, setTab] = useState('kaart');
   const [skipLogin, setSkipLogin] = useState(() => localStorage.getItem('camp:lokaal') === 'ja');
   const [profile, setProfile] = useState(null);
@@ -107,10 +108,13 @@ export default function App() {
     );
   }
 
-  if (!session && !skipLogin) {
+  // Een uitnodigingslink gaat voor op "ik klikte laatst weg naar de lokale
+  // kluis": anders zou de uitgenodigde het aanmeldscherm nooit te zien krijgen.
+  if (!session && (!skipLogin || joinCode)) {
     return (
       <Login
         configured={configured}
+        joinCode={joinCode}
         onSkip={() => {
           localStorage.setItem('camp:lokaal', 'ja');
           setSkipLogin(true);

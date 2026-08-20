@@ -52,7 +52,10 @@ build vallen zodra er één punt buiten zijn straal komt.
   nachten en hoe het was.
 - **🔗 Delen** — een geheime link (met wachtwoord, vervaldatum, maximum aantal
   keer openen en een intrekknop), of rechtstreeks aan een vriend of aan een
-  groep als "Busploeg". Voor bij het kampvuur zit er een QR-code bij.
+  groep als "Busploeg". Voor bij het kampvuur zit er een QR-code bij. Om een
+  gedeelde plek te bekíjken heeft niemand een account nodig.
+- **✉️ Uitnodigen** — vrienden komen erin via een link die jij maakt; de
+  voorpagina biedt aanmelden niet aan.
 - **👀 Zien wat de ander ziet** — bij het instellen van een share staat er een
   kaartje naast dat exact toont wat er straks vertrokken is.
 - **📥 Import en export** — GPX, KML en GeoJSON, beide kanten op. Je zit nergens
@@ -144,11 +147,13 @@ Wat je moet weten:
   vervaging. Bewaar het zo zorgvuldig als de plekken zelf.
 - **Wie "precies" krijgt, heeft het gewoon.** Camp kan voorkomen dat er te veel
   vertrekt, maar niet dat iemand doorstuurt wat hij al heeft.
-- **Aanmelden staat open.** Wie de sleutel uit de bundel plukt, kan een eigen
-  account maken. Van jouw plekken ziet hij niets — dat is getoetst — maar hij
-  gebruikt wel je gratis quotum. Daarom staat er een grens op de fotobucket:
-  5 MB per bestand, alleen afbeeldingen. Wil je het later dichtzetten, dan is
-  dat één schakelaar; zie [SUPABASE_SETUP.md](SUPABASE_SETUP.md) stap 5.
+- **Aanmelden kan alleen met een uitnodigingslink.** De voorpagina biedt het niet
+  aan, en dat is niet alleen verstoppen: de database weigert elke nieuwe
+  gebruiker zonder geldige code, ook wie het formulier overslaat. Codes lopen af,
+  zijn te beperken tot één gebruik en zijn in te trekken. De allereerste
+  gebruiker mag zonder — dat ben jij.
+- Er staat een grens op de fotobucket (5 MB per bestand, alleen afbeeldingen),
+  zodat een account je gratis opslag niet kan volzetten.
 - Camp versleutelt niet client-side. Wie beheerderstoegang tot jouw
   Supabase-project heeft, kan bij de coördinaten — dat ben jij, en dat is de
   bedoeling.

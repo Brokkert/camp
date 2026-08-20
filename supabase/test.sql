@@ -16,10 +16,20 @@
 \set ON_ERROR_STOP on
 \pset pager off
 
+-- De eerste gebruiker mag zonder uitnodiging binnen; daarna is er een geldige
+-- code nodig. Voor de rest van de tests maken we er dus eerst een aan.
 insert into auth.users (id, email) values
-  ('11111111-1111-1111-1111-111111111111', 'laurens@uxit.nl'),
-  ('22222222-2222-2222-2222-222222222222', 'vriend@example.com'),
-  ('33333333-3333-3333-3333-333333333333', 'vreemde@example.com');
+  ('11111111-1111-1111-1111-111111111111', 'laurens@uxit.nl');
+
+insert into public.camp_invites (code_hash, created_by, label)
+values (encode(extensions.digest('test-uitnodiging','sha256'),'hex'),
+        '11111111-1111-1111-1111-111111111111', 'voor de tests');
+
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('22222222-2222-2222-2222-222222222222', 'vriend@example.com',
+   '{"invite":"test-uitnodiging"}'::jsonb),
+  ('33333333-3333-3333-3333-333333333333', 'vreemde@example.com',
+   '{"invite":"test-uitnodiging"}'::jsonb);
 
 \echo ''
 \echo '### 1. Elke nieuwe gebruiker krijgt automatisch een profiel'
@@ -261,8 +271,9 @@ commit;
 \echo ''
 \echo '### Aanvalsscenario s'
 
-insert into auth.users (id, email)
-values ('99999999-9999-9999-9999-999999999999', 'aanvaller@example.com');
+insert into auth.users (id, email, raw_user_meta_data)
+values ('99999999-9999-9999-9999-999999999999', 'aanvaller@example.com',
+        '{"invite":"test-uitnodiging"}'::jsonb);
 
 -- ---------------------------------------------------------------------------
 -- 1. Een share aanmaken die naar andermans plek wijst.
@@ -560,3 +571,85 @@ begin
     b.file_size_limit / 1048576, array_to_string(b.allowed_mime_types, ', ');
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Aanmelden kan alleen met een uitnodiging
+-- ---------------------------------------------------------------------------
+-- Het aanmeldformulier staat niet op de voorpagina, maar dat is verstoppen en
+-- geen slot. Dit is het slot: ook wie de auth-endpoint rechtstreeks aanroept
+-- komt er zonder geldige code niet in.
+\echo ''
+\echo '### Aanmelden met een uitnodiging'
+
+do $$
+declare
+  gelukt boolean;
+begin
+  -- Zonder code
+  gelukt := true;
+  begin
+    insert into auth.users (id, email)
+    values (gen_random_uuid(), 'bot@example.com');
+  exception when others then gelukt := false;
+  end;
+  if gelukt then raise exception 'Aanmelden zonder uitnodiging lukt gewoon'; end if;
+
+  -- Met een verzonnen code
+  gelukt := true;
+  begin
+    insert into auth.users (id, email, raw_user_meta_data)
+    values (gen_random_uuid(), 'bot2@example.com', '{"invite":"zelf-verzonnen"}'::jsonb);
+  exception when others then gelukt := false;
+  end;
+  if gelukt then raise exception 'Een verzonnen uitnodigingscode wordt geaccepteerd'; end if;
+
+  raise notice 'Aanmelden zonder geldige uitnodiging: geweigerd';
+end;
+$$;
+
+-- Een ingetrokken of opgebruikte uitnodiging werkt niet meer.
+insert into public.camp_invites (code_hash, created_by, label, max_uses)
+values (encode(extensions.digest('eenmalig','sha256'),'hex'),
+        '11111111-1111-1111-1111-111111111111', 'eenmalig', 1);
+
+do $$
+declare
+  gelukt boolean;
+begin
+  -- Eerste keer: mag.
+  insert into auth.users (id, email, raw_user_meta_data)
+  values (gen_random_uuid(), 'gast1@example.com', '{"invite":"eenmalig"}'::jsonb);
+
+  -- Tweede keer met dezelfde eenmalige code: mag niet.
+  gelukt := true;
+  begin
+    insert into auth.users (id, email, raw_user_meta_data)
+    values (gen_random_uuid(), 'gast2@example.com', '{"invite":"eenmalig"}'::jsonb);
+  exception when others then gelukt := false;
+  end;
+  if gelukt then raise exception 'Een eenmalige uitnodiging is twee keer te gebruiken'; end if;
+
+  raise notice 'Uitnodiging met max_uses: raakt op zoals bedoeld';
+end;
+$$;
+
+-- Ingetrokken uitnodiging.
+insert into public.camp_invites (code_hash, created_by, label, revoked_at)
+values (encode(extensions.digest('ingetrokken','sha256'),'hex'),
+        '11111111-1111-1111-1111-111111111111', 'ingetrokken', now());
+
+do $$
+declare
+  gelukt boolean := true;
+begin
+  begin
+    insert into auth.users (id, email, raw_user_meta_data)
+    values (gen_random_uuid(), 'gast3@example.com', '{"invite":"ingetrokken"}'::jsonb);
+  exception when others then gelukt := false;
+  end;
+  if gelukt then raise exception 'Een ingetrokken uitnodiging werkt nog'; end if;
+  raise notice 'Ingetrokken uitnodiging: geweigerd';
+end;
+$$;
+
+\echo 'Uitnodigingen doen wat ze moeten doen.'

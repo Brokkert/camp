@@ -107,6 +107,25 @@ create table if not exists public.camp_circle_members (
 );
 
 -- ---------------------------------------------------------------------------
+-- Uitnodigingen
+-- ---------------------------------------------------------------------------
+-- Aanmelden kan alleen met een uitnodigingslink. Net als bij een deel-link
+-- bewaren we alleen de hash: de code zelf staat uitsluitend in de link die jij
+-- doorstuurt.
+create table if not exists public.camp_invites (
+  id         uuid primary key default gen_random_uuid(),
+  code_hash  text unique not null,
+  created_by uuid not null references auth.users on delete cascade,
+  label      text not null default '',
+  max_uses   int,
+  used_count int not null default 0,
+  expires_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists camp_invites_owner_idx on public.camp_invites (created_by);
+
+-- ---------------------------------------------------------------------------
 -- Shares
 -- ---------------------------------------------------------------------------
 -- kind = 'link'   → geheime URL, optioneel met wachtwoord
@@ -159,6 +178,7 @@ alter table public.camp_visits         enable row level security;
 alter table public.camp_friendships    enable row level security;
 alter table public.camp_circles        enable row level security;
 alter table public.camp_circle_members enable row level security;
+alter table public.camp_invites        enable row level security;
 alter table public.camp_shares         enable row level security;
 alter table public.camp_share_views    enable row level security;
 
@@ -267,6 +287,13 @@ drop policy if exists camp_circle_members_self on public.camp_circle_members;
 create policy camp_circle_members_self on public.camp_circle_members
   for select to authenticated using (member_id = auth.uid());
 
+-- Uitnodigingen: alleen van wie ze maakte. De trigger die ze controleert draait
+-- als SECURITY DEFINER en komt er dus wel bij.
+drop policy if exists camp_invites_owner on public.camp_invites;
+create policy camp_invites_owner on public.camp_invites
+  for all to authenticated
+  using (created_by = auth.uid()) with check (created_by = auth.uid());
+
 -- Shares: alleen de eigenaar ziet en beheert ze. Ontvangers komen er via RPC.
 -- Let op de tweede voorwaarde in "with check". Zonder die regel kan iemand een
 -- share aanmaken die naar ANDERMANS plek wijst en zichzelf als ontvanger
@@ -303,7 +330,7 @@ revoke all on all tables in schema public from anon;
 grant select, insert, update, delete on
   public.camp_profiles, public.camp_spots, public.camp_visits,
   public.camp_friendships, public.camp_circles, public.camp_circle_members,
-  public.camp_shares
+  public.camp_shares, public.camp_invites
   to authenticated;
 grant select, delete on public.camp_share_views to authenticated;
 
@@ -615,10 +642,39 @@ returns trigger
 language plpgsql security definer set search_path = public, extensions, pg_temp
 as $$
 declare
-  base text;
-  try  text;
-  n    int := 0;
+  base   text;
+  try    text;
+  n      int := 0;
+  code   text;
+  inv    public.camp_invites;
+  eerste boolean;
 begin
+  -- De allereerste gebruiker heeft geen uitnodiging nodig — anders kun je nooit
+  -- beginnen. Meld jezelf dus meteen aan nadat je dit schema hebt gedraaid.
+  select not exists (select 1 from public.camp_profiles) into eerste;
+
+  if not eerste then
+    -- De code komt binnen via options.data bij het aanmelden. Dit is de laag
+    -- die het écht afdwingt: het formulier verstoppen houdt alleen bots tegen,
+    -- dit houdt ook iemand tegen die de auth-endpoint rechtstreeks aanroept.
+    code := new.raw_user_meta_data ->> 'invite';
+    if code is null or code = '' then
+      raise exception 'Voor Camp heb je een uitnodiging nodig.';
+    end if;
+
+    select * into inv from public.camp_invites
+     where code_hash = encode(digest(code, 'sha256'), 'hex');
+
+    if not found
+       or inv.revoked_at is not null
+       or (inv.expires_at is not null and inv.expires_at < now())
+       or (inv.max_uses is not null and inv.used_count >= inv.max_uses) then
+      raise exception 'Deze uitnodiging is niet (meer) geldig.';
+    end if;
+
+    update public.camp_invites set used_count = used_count + 1 where id = inv.id;
+  end if;
+
   base := regexp_replace(lower(split_part(coalesce(new.email, 'kampeerder'), '@', 1)),
                          '[^a-z0-9]+', '', 'g');
   if base = '' then base := 'kampeerder'; end if;

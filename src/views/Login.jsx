@@ -8,7 +8,7 @@ import { localVaultSize } from '../lib/vault.js';
  * Camp als lokale kluis. Dat is bewust — je moet je eerste plek kunnen
  * opschrijven zonder eerst je mail te openen.
  */
-export default function Login({ configured, onSkip }) {
+export default function Login({ configured, onSkip, joinCode = null }) {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState('');
@@ -19,10 +19,17 @@ export default function Login({ configured, onSkip }) {
     setBusy(true);
     setError(null);
     try {
-      await sendMagicLink(email);
+      await sendMagicLink(email, { invite: joinCode });
       setSent(true);
     } catch (e) {
-      setError(e.message);
+      // Supabase weigert een onbekend adres als er geen uitnodiging meegaat.
+      // Die foutmelding is Engels en cryptisch; hier staat wat er aan de hand is.
+      const onbekend = /signup|not allowed|not found|Signups/i.test(e.message);
+      setError(
+        onbekend && !joinCode
+          ? 'Dit adres heeft nog geen Camp-account. Aanmelden kan alleen via een uitnodigingslink — vraag er iemand om.'
+          : e.message
+      );
     } finally {
       setBusy(false);
     }
@@ -43,13 +50,23 @@ export default function Login({ configured, onSkip }) {
 
   return (
     <div className="login-wrap topo">
-      <div className="logo">⛺</div>
+      <div className="logo">{joinCode ? '✉️' : '⛺'}</div>
       <h1>Camp</h1>
       <div className="rule" />
       <p className="tag">
-        Je geheime plekken op één kaart.
-        <br />
-        Deel ze zo precies als je zelf wilt.
+        {joinCode ? (
+          <>
+            Je bent uitgenodigd.
+            <br />
+            Vul je e-mailadres in, dan zetten we je erin.
+          </>
+        ) : (
+          <>
+            Je geheime plekken op één kaart.
+            <br />
+            Deel ze zo precies als je zelf wilt.
+          </>
+        )}
       </p>
 
       {error && <Note tone="bad">{error}</Note>}
@@ -71,7 +88,7 @@ export default function Login({ configured, onSkip }) {
         </>
       ) : !sent ? (
         <>
-          <Field label="Je e-mailadres">
+          <Field label={joinCode ? 'Je e-mailadres' : 'Je e-mailadres'}>
             <input
               className="input"
               type="email"
@@ -87,10 +104,13 @@ export default function Login({ configured, onSkip }) {
             onClick={send}
             disabled={busy || !email.includes('@')}
           >
-            {busy ? <span className="spinner" /> : '✉️'} Stuur me een link
+            {busy ? <span className="spinner" /> : '✉️'}{' '}
+            {joinCode ? 'Account aanmaken' : 'Stuur me een link'}
           </button>
           <p className="tiny muted center" style={{ marginTop: 14, lineHeight: 1.6 }}>
-            Geen wachtwoord. Je krijgt een mail met een link én een code van zes cijfers.
+            {joinCode
+              ? 'Geen wachtwoord. Je krijgt een mail met een link én een code van zes cijfers.'
+              : 'Geen wachtwoord — je krijgt een mail. Nog geen account? Dat kan alleen via een uitnodigingslink.'}
           </p>
 
           <button className="btn ghost wide" style={{ marginTop: 20 }} onClick={onSkip}>

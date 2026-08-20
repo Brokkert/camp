@@ -109,7 +109,7 @@ export default function Login({ configured, onSkip, joinCode = null }) {
           </button>
           <p className="tiny muted center" style={{ marginTop: 14, lineHeight: 1.6 }}>
             {joinCode
-              ? 'Geen wachtwoord. Je krijgt een mail met een link én een code van zes cijfers.'
+              ? 'Geen wachtwoord. Je krijgt een mail met een link; klikken en je bent binnen.'
               : 'Geen wachtwoord — je krijgt een mail. Nog geen account? Dat kan alleen via een uitnodigingslink.'}
           </p>
 
@@ -120,24 +120,37 @@ export default function Login({ configured, onSkip, joinCode = null }) {
       ) : (
         <>
           <Note tone="good">
-            Er is een mail onderweg naar <strong>{email}</strong>. Klik op de link, of tik de code
-            hieronder over als je de mail op een ander apparaat opent.
+            Er is een mail onderweg naar <strong>{email}</strong>. Klik op de link erin, dan ben je
+            binnen.
           </Note>
-          <Field label="Code uit de mail">
-            <input
-              className="input mono"
-              inputMode="numeric"
-              value={code}
-              placeholder="123456"
-              autoComplete="one-time-code"
-              onChange={(e) => setCode(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && code.length >= 6 && check()}
-            />
-          </Field>
-          <button className="btn primary wide" onClick={check} disabled={busy || code.length < 6}>
-            {busy ? <span className="spinner" /> : null} Inloggen
-          </button>
-          <button className="btn ghost wide" style={{ marginTop: 10 }} onClick={() => setSent(false)}>
+
+          {/* De code is een terugvaloptie, geen hoofdweg. Supabase stuurt met zijn
+              eigen mailserver alleen een link; de zes cijfers komen er pas bij als
+              je eigen SMTP hebt ingesteld, want anders zijn de templates niet te
+              bewerken. Daarom staat dit ingeklapt in plaats van als eerste veld. */}
+          <details className="fallback">
+            <summary>Mail op een ander apparaat geopend?</summary>
+            <p className="hint" style={{ marginTop: 8 }}>
+              Staat er een code van zes cijfers in de mail? Vul die hier in. Zit er alleen een
+              link in, klik die dan op het apparaat waar je de mail opent — dat werkt net zo goed.
+            </p>
+            <Field label="Code uit de mail">
+              <input
+                className="input mono"
+                inputMode="numeric"
+                value={code}
+                placeholder="123456"
+                autoComplete="one-time-code"
+                onChange={(e) => setCode(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && code.length >= 6 && check()}
+              />
+            </Field>
+            <button className="btn wide" onClick={check} disabled={busy || code.length < 6}>
+              {busy ? <span className="spinner" /> : null} Inloggen met code
+            </button>
+          </details>
+
+          <button className="btn ghost wide" style={{ marginTop: 14 }} onClick={() => setSent(false)}>
             Ander adres gebruiken
           </button>
         </>

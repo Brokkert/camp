@@ -38,15 +38,22 @@ Onder **Authentication → Sign In / Providers**:
 - **Confirm email** aan (dat ís de magic link).
 - Wachtwoorden mag je uitzetten; Camp gebruikt ze niet.
 
-### De code van zes cijfers erbij
+### Over de code van zes cijfers
 
-Standaard stuurt Supabase alleen een link. Camp toont ook een veld voor een code
-— handig als je de mail op je telefoon opent terwijl de app op je laptop staat.
-Ga daarvoor naar **Authentication → Emails → Magic Link** en zet in de template
-`{{ .Token }}` erbij, bijvoorbeeld:
+Camp heeft een veldje om een code van zes cijfers in te tikken, voor als je de
+mail op je telefoon opent terwijl de app op je laptop staat. **Met de ingebouwde
+mailserver van Supabase krijg je die code niet.** De standaardtemplate bevat
+alleen een *Sign in*-link, en templates zijn niet te bewerken zolang je geen
+eigen SMTP hebt ingesteld — het dashboard zegt dat er ook bij:
+
+> Set up custom SMTP to edit templates. Emails will be sent using the default
+> templates.
+
+Dat is geen probleem: die link werkt prima, en het codeveld staat in de app
+ingeklapt als terugvaloptie. Wil je de code er tóch bij, dan heb je eigen SMTP
+nodig; zet daarna in **Authentication → Emails → Magic Link** iets als:
 
 ```html
-<h2>Inloggen bij Camp</h2>
 <p><a href="{{ .ConfirmationURL }}">Klik hier om in te loggen</a></p>
 <p>Of tik deze code over: <strong>{{ .Token }}</strong></p>
 ```
@@ -59,14 +66,22 @@ Onder **Authentication → URL Configuration**:
 - **Redirect URLs**: dezelfde, plus `http://localhost:5173/` om lokaal te
   kunnen ontwikkelen.
 
-> **Let op — dit is de enige echte beperking van gratis.** De ingebouwde
-> mailserver van Supabase is bedoeld om te testen en laat maar een paar mails
-> per uur door. Voor jou alleen is dat prima; ga je met een handvol vrienden
-> tegelijk inloggen, dan loop je ertegenaan. Oplossing: vul onder **Project
-> Settings → Authentication → SMTP Settings** een eigen mailserver in. Gratis
-> opties zijn [Brevo](https://www.brevo.com) (300 mails per dag) en
-> [Resend](https://resend.com) (3.000 per maand). Je hoeft er verder niets voor
-> aan te passen in Camp.
+> **Let op — dit is de enige plek waar gratis echt knelt.** De ingebouwde
+> mailserver van Supabase is bedoeld om te testen en is stevig aan banden
+> gelegd. Het getal dat voor jouw project geldt staat in het dashboard onder
+> **Authentication → Rate Limits**, bij *Rate limit for sending emails*. Kijk
+> daar in plaats van af te gaan op wat iemand je vertelt.
+>
+> Voor jezelf is dat ruim voldoende — je sessie blijft staan, je logt zelden in.
+> Ga je met een handvol vrienden tegelijk aanmelden, dan loop je ertegenaan.
+> Oplossing: vul onder **Project Settings → Authentication → SMTP Settings** een
+> eigen mailserver in. Gratis opties zijn [Brevo](https://www.brevo.com)
+> (300 mails per dag, één afzenderadres valideren is genoeg) en
+> [Resend](https://resend.com). Aan Camp hoeft er niets te veranderen.
+>
+> Eén ding om zelf te testen zodra alles draait: log eerst zelf in (dan weet je
+> dat versturen werkt), en stuur daarna een uitnodiging naar een adres dat niet
+> van jou is. Komt die tweede niet aan, dan is dát het moment voor eigen SMTP.
 
 ## 4. De sleutels in de app zetten
 

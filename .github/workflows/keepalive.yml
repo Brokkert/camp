@@ -15,8 +15,8 @@ on:
   workflow_dispatch:
 
 env:
-  SUPABASE_URL: ''
-  SUPABASE_KEY: ''
+  SUPABASE_URL: 'https://hyaaujbbpilhaqllxwml.supabase.co'
+  SUPABASE_KEY: 'sb_publishable_aBflg80lHit2_57p0PRong_evinGGf_'
 
 jobs:
   ping:

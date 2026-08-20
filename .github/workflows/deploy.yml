@@ -30,6 +30,13 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       - run: npm test
       - run: npm run build
+      # Let op: "enablement: true" kan Pages niet zelf aanzetten als dat nog nooit
+      # gebeurd is — het standaard GITHUB_TOKEN mag geen Pages-site aanmaken en
+      # de stap faalt dan met "Resource not accessible by integration".
+      #
+      # Eenmalig met de hand: Settings -> Pages -> Build and deployment ->
+      # Source op "GitHub Actions". Daarna werkt deze stap gewoon en hoef je er
+      # nooit meer naar om te kijken.
       - uses: actions/configure-pages@v5
         with:
           enablement: true

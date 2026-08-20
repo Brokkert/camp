@@ -227,6 +227,12 @@ Elke push naar `main` bouwt en publiceert naar GitHub Pages via
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). De tests moeten
 groen zijn voordat er iets live gaat.
 
+> **Eén keer met de hand:** zet **Settings → Pages → Build and deployment →
+> Source** op **GitHub Actions**. De workflow probeert dat zelf, maar het
+> standaard token mag geen Pages-site aanmaken; zolang dat niet gebeurd is
+> faalt de deploy met *"Resource not accessible by integration"*. De bouw en de
+> tests draaien dan overigens gewoon — alleen het publiceren stokt.
+
 GitHub Pages vereist op een gratis account een **publieke** repo — net als bij
 CATANIA en Paklijst. Dat kan hier veilig: er staat geen enkel geheim in de
 broncode. De publishable key is bedoeld om openbaar te zijn en beschermt niets;

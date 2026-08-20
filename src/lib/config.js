@@ -7,8 +7,8 @@
 //
 // Zolang hier niets staat draait Camp in "lokale kluis"-modus: alles blijft in
 // deze browser, en delen is uitgeschakeld.
-export const SUPABASE_URL = '';
-export const SUPABASE_KEY = '';
+export const SUPABASE_URL = 'https://hyaaujbbpilhaqllxwml.supabase.co';
+export const SUPABASE_KEY = 'sb_publishable_aBflg80lHit2_57p0PRong_evinGGf_';
 
 // Handig om zonder herbouwen te testen: wat je in Instellingen invult, wint.
 const OVERRIDE_KEY = 'camp:supabase';

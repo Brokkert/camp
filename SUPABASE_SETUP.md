@@ -116,6 +116,28 @@ Attack Protection** een lijst met toegestane e-mailadressen of domeinen zetten.
 > alles. Hier is de sleutel géén drempel en hoeft dat ook niet te zijn; de
 > drempel staat in de database.
 
+### Eén ding om even na te kijken
+
+Het opslagbeleid staat zo dat alleen jij de lijst met foto-paden kunt opvragen,
+terwijl de bucket zelf openbaar is — zo blijven gedeelde foto's laden zonder dat
+iemand kan bladeren. Dat leunt erop dat Supabase de openbare
+`/storage/v1/object/public/...`-route buiten Row Level Security om serveert.
+Dat is het gedocumenteerde gedrag, maar ik heb het niet tegen een echt project
+kunnen toetsen.
+
+Doe daarom één keer de proef: zet een foto bij een plek, deel die plek op
+"precies" en open de link in een ander browservenster. Zie je de foto, dan klopt
+het. Zie je hem niet, dan is dit de terugvaloptie:
+
+```sql
+drop policy if exists camp_photos_read on storage.objects;
+create policy camp_photos_read on storage.objects
+  for select using (bucket_id = 'camp-photos');
+```
+
+Dan zijn de foto's weer voor iedereen leesbaar én opsombaar. De plekken zelf
+blijven onaangetast — die staan in de database, niet in de opslag.
+
 ## 6. De keepalive aanzetten
 
 Supabase pauzeert gratis projecten als er te weinig gebeurt. In

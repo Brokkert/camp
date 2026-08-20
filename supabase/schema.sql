@@ -130,10 +130,14 @@ create table if not exists public.camp_shares (
   expires_at       timestamptz,
   max_views        int,
   view_count       int not null default 0,
+  failed_count     int not null default 0,
   last_viewed_at   timestamptz,
   revoked_at       timestamptz,
   created_at       timestamptz not null default now()
 );
+-- Voor projecten die het schema al eerder draaiden.
+alter table public.camp_shares add column if not exists failed_count int not null default 0;
+
 create unique index if not exists camp_shares_token_idx on public.camp_shares (token_hash)
   where token_hash is not null;
 create index if not exists camp_shares_spot_idx on public.camp_shares (spot_id);
@@ -158,11 +162,35 @@ alter table public.camp_circle_members enable row level security;
 alter table public.camp_shares         enable row level security;
 alter table public.camp_share_views    enable row level security;
 
--- Profielen: iedereen die ingelogd is mag profielen zien (nodig om een vriend
--- op handle te kunnen vinden). Alleen jezelf bewerken.
+-- Profielen: alleen van mensen met wie je iets te maken hebt. "Iedereen die
+-- ingelogd is mag alles zien" was makkelijker, maar dan kan iemand die een
+-- account aanmaakt de complete ledenlijst uitlezen. Een vriend zoeken gaat via
+-- camp_find_profile(), dat exact op handle matcht en dus geen lijst oplevert.
+create or replace function public.camp_can_see_profile(p_target uuid)
+returns boolean
+language sql stable security definer set search_path = public, extensions, pg_temp
+as $$
+  select p_target = auth.uid()
+      or exists (
+           select 1 from public.camp_friendships f
+           where (f.requester_id = auth.uid() and f.addressee_id = p_target)
+              or (f.addressee_id = auth.uid() and f.requester_id = p_target)
+         )
+      or exists (
+           select 1 from public.camp_circles c
+           join public.camp_circle_members m on m.circle_id = c.id
+           where c.owner_id = auth.uid() and m.member_id = p_target
+         )
+      or exists (
+           select 1 from public.camp_circle_members mine
+           join public.camp_circle_members other on other.circle_id = mine.circle_id
+           where mine.member_id = auth.uid() and other.member_id = p_target
+         );
+$$;
+
 drop policy if exists camp_profiles_read on public.camp_profiles;
 create policy camp_profiles_read on public.camp_profiles
-  for select to authenticated using (true);
+  for select to authenticated using (public.camp_can_see_profile(id));
 
 drop policy if exists camp_profiles_write on public.camp_profiles;
 create policy camp_profiles_write on public.camp_profiles
@@ -176,7 +204,15 @@ create policy camp_spots_owner on public.camp_spots
 
 drop policy if exists camp_visits_owner on public.camp_visits;
 create policy camp_visits_owner on public.camp_visits
-  for all to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+  for all to authenticated
+  using (owner_id = auth.uid())
+  with check (
+    owner_id = auth.uid()
+    and exists (
+      select 1 from public.camp_spots sp
+      where sp.id = spot_id and sp.owner_id = auth.uid()
+    )
+  );
 
 -- Vriendschappen: allebei de kanten mogen de rij zien; alleen de ontvanger
 -- mag hem accepteren.
@@ -232,9 +268,22 @@ create policy camp_circle_members_self on public.camp_circle_members
   for select to authenticated using (member_id = auth.uid());
 
 -- Shares: alleen de eigenaar ziet en beheert ze. Ontvangers komen er via RPC.
+-- Let op de tweede voorwaarde in "with check". Zonder die regel kan iemand een
+-- share aanmaken die naar ANDERMANS plek wijst en zichzelf als ontvanger
+-- opgeven; camp_shared_with_me() zou dan keurig de exacte coordinaten van een
+-- vreemde uitserveren. Eigenaar zijn van de share is niet genoeg — je moet ook
+-- eigenaar zijn van de plek.
 drop policy if exists camp_shares_owner on public.camp_shares;
 create policy camp_shares_owner on public.camp_shares
-  for all to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+  for all to authenticated
+  using (owner_id = auth.uid())
+  with check (
+    owner_id = auth.uid()
+    and exists (
+      select 1 from public.camp_spots sp
+      where sp.id = spot_id and sp.owner_id = auth.uid()
+    )
+  );
 
 drop policy if exists camp_share_views_owner on public.camp_share_views;
 create policy camp_share_views_owner on public.camp_share_views
@@ -406,22 +455,31 @@ begin
     return jsonb_build_object('error', 'used_up');
   end if;
 
+  -- Wie het token heeft maar het wachtwoord niet, mag niet eindeloos blijven
+  -- proberen. bcrypt is traag, maar traag is niet hetzelfde als eindig: een
+  -- kort wachtwoord als "ourthe" is anders alsnog te raden.
+  if s.failed_count >= 10 then
+    return jsonb_build_object('error', 'locked');
+  end if;
+
   if s.pass_hash is not null then
     if p_pass is null or p_pass = '' then
       return jsonb_build_object('error', 'needs_pass');
     end if;
     if crypt(p_pass, s.pass_hash) <> s.pass_hash then
+      update public.camp_shares set failed_count = failed_count + 1 where id = s.id;
       return jsonb_build_object('error', 'wrong_pass');
     end if;
   end if;
 
   select * into sp from public.camp_spots where id = s.spot_id;
-  if not found then
+  if not found or sp.owner_id <> s.owner_id then
     return jsonb_build_object('error', 'not_found');
   end if;
 
+  -- Gelukt: de teller met misgokken weer op nul.
   update public.camp_shares
-     set view_count = view_count + 1, last_viewed_at = now()
+     set view_count = view_count + 1, last_viewed_at = now(), failed_count = 0
    where id = s.id;
   insert into public.camp_share_views (share_id) values (s.id);
 
@@ -465,7 +523,10 @@ begin
   loop
     select * into s  from public.camp_shares where id = r.share_id;
     select * into sp from public.camp_spots  where id = r.spot_id;
-    if found then
+    -- Tweede slot op dezelfde deur: een share mag alleen een plek uitserveren
+    -- die van dezelfde persoon is. Het RLS-beleid houdt scheve rijen al tegen
+    -- bij het schrijven; dit vangt ze af bij het lezen.
+    if found and sp.owner_id = s.owner_id then
       result := result || jsonb_build_array(public.camp_share_payload(s, sp));
     end if;
   end loop;
@@ -590,9 +651,15 @@ insert into storage.buckets (id, name, public)
 values ('camp-photos', 'camp-photos', true)
 on conflict (id) do nothing;
 
+-- Alleen de eigenaar mag de objecten OPSOMMEN. De bucket staat op openbaar,
+-- dus /storage/v1/object/public/... blijft voor iedereen bereikbaar en gedeelde
+-- foto's blijven gewoon laden — maar niemand kan de lijst met paden opvragen.
+-- Zonder deze beperking is "onraadbare bestandsnaam" niets waard: dan vraag je
+-- de namen simpelweg op.
 drop policy if exists camp_photos_read on storage.objects;
 create policy camp_photos_read on storage.objects
-  for select using (bucket_id = 'camp-photos');
+  for select to authenticated
+  using (bucket_id = 'camp-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 
 drop policy if exists camp_photos_write on storage.objects;
 create policy camp_photos_write on storage.objects
@@ -613,8 +680,10 @@ create table if not exists public.camp_keepalive (
 );
 alter table public.camp_keepalive enable row level security;
 
+-- Precies één rij, anders is dit een gratis schrijfruimte voor voorbijgangers.
 drop policy if exists camp_keepalive_anon on public.camp_keepalive;
 create policy camp_keepalive_anon on public.camp_keepalive
-  for all to anon, authenticated using (true) with check (true);
+  for all to anon, authenticated
+  using (id = 'keepalive') with check (id = 'keepalive');
 
 grant select, insert, update, delete on public.camp_keepalive to anon, authenticated;

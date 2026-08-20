@@ -153,6 +153,7 @@ export const SHARE_ERRORS = {
   used_up: 'Deze link is al zo vaak bekeken als was toegestaan.',
   needs_pass: 'Er hoort een wachtwoord bij deze link.',
   wrong_pass: 'Dat wachtwoord klopt niet.',
+  locked: 'Er is te vaak een verkeerd wachtwoord geprobeerd. Vraag om een nieuwe link.',
 };
 
 export function shareStatus(share) {

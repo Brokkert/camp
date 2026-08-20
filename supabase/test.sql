@@ -251,3 +251,188 @@ $$;
 commit;
 
 \echo 'Alle harde controles geslaagd.'
+
+-- ============================================================================
+-- Aanvalsscenario's
+-- ============================================================================
+-- Niet "werkt het zoals bedoeld", maar "houdt het stand als iemand het
+-- probeert". Elk van deze aanvallen werkte een keer; ze staan hier zodat ze
+-- niet stilletjes terug kunnen komen.
+\echo ''
+\echo '### Aanvalsscenario s'
+
+insert into auth.users (id, email)
+values ('99999999-9999-9999-9999-999999999999', 'aanvaller@example.com');
+
+-- ---------------------------------------------------------------------------
+-- 1. Een share aanmaken die naar andermans plek wijst.
+--    Was het ernstigste gat: eigenaar van de share zijn was genoeg, en
+--    camp_shared_with_me() serveerde vervolgens de exacte coordinaten uit.
+-- ---------------------------------------------------------------------------
+begin;
+set local role authenticated;
+set local camp.test_uid = '99999999-9999-9999-9999-999999999999';
+do $$
+declare
+  gelukt boolean := false;
+begin
+  begin
+    insert into public.camp_shares (spot_id, owner_id, kind, target_user_id, precision)
+    values ('aaaaaaaa-0000-0000-0000-000000000001',
+            '99999999-9999-9999-9999-999999999999',
+            'user', '99999999-9999-9999-9999-999999999999', 'exact');
+    gelukt := true;
+  exception when insufficient_privilege or others then
+    gelukt := false;
+  end;
+  if gelukt then
+    raise exception 'Een vreemde kan een share maken op andermans plek';
+  end if;
+  raise notice 'Share op andermans plek: geweigerd';
+end;
+$$;
+rollback;
+
+-- ---------------------------------------------------------------------------
+-- 2. Een bezoek loggen op andermans plek (komt mee in een share met logboek).
+-- ---------------------------------------------------------------------------
+begin;
+set local role authenticated;
+set local camp.test_uid = '99999999-9999-9999-9999-999999999999';
+do $$
+declare
+  gelukt boolean := false;
+begin
+  begin
+    insert into public.camp_visits (spot_id, owner_id, notes)
+    values ('aaaaaaaa-0000-0000-0000-000000000001',
+            '99999999-9999-9999-9999-999999999999', 'hier stond ik');
+    gelukt := true;
+  exception when others then
+    gelukt := false;
+  end;
+  if gelukt then
+    raise exception 'Een vreemde kan een bezoek loggen op andermans plek';
+  end if;
+  raise notice 'Bezoek op andermans plek: geweigerd';
+end;
+$$;
+rollback;
+
+-- ---------------------------------------------------------------------------
+-- 3. De ledenlijst uitlezen. Een account aanmaken kan iedereen; dan moet je
+--    daarmee niet meteen alle namen van alle gebruikers hebben.
+-- ---------------------------------------------------------------------------
+begin;
+set local role authenticated;
+set local camp.test_uid = '99999999-9999-9999-9999-999999999999';
+do $$
+declare
+  n int;
+begin
+  select count(*) into n from public.camp_profiles;
+  -- Alleen het eigen profiel hoort zichtbaar te zijn.
+  if n > 1 then
+    raise exception 'Een vreemde ziet % profielen in plaats van alleen zichzelf', n;
+  end if;
+  raise notice 'Ledenlijst: afgeschermd';
+end;
+$$;
+rollback;
+
+-- ---------------------------------------------------------------------------
+-- 4. Maar vrienden moeten elkaar wél kunnen zien, anders werkt de app niet.
+-- ---------------------------------------------------------------------------
+begin;
+set local role authenticated;
+set local camp.test_uid = '11111111-1111-1111-1111-111111111111';
+insert into public.camp_friendships (requester_id, addressee_id, status)
+values ('11111111-1111-1111-1111-111111111111',
+        '22222222-2222-2222-2222-222222222222', 'accepted')
+on conflict do nothing;
+do $$
+begin
+  if not exists (select 1 from public.camp_profiles
+                 where id = '22222222-2222-2222-2222-222222222222') then
+    raise exception 'Een vriend kan het profiel van zijn vriend niet zien';
+  end if;
+  raise notice 'Vrienden zien elkaar: in orde';
+end;
+$$;
+commit;
+
+-- ---------------------------------------------------------------------------
+-- 5. Iemand zoeken die nog geen vriend is, moet blijven werken — dat loopt
+--    via camp_find_profile(), dat exact op handle matcht en dus geen lijst is.
+-- ---------------------------------------------------------------------------
+begin;
+set local role authenticated;
+set local camp.test_uid = '99999999-9999-9999-9999-999999999999';
+do $$
+begin
+  if public.camp_find_profile('laurens') is null
+     or public.camp_find_profile('laurens') = 'null'::jsonb then
+    raise exception 'Een vriend toevoegen op naam werkt niet meer';
+  end if;
+  raise notice 'Zoeken op handle: werkt nog';
+end;
+$$;
+commit;
+
+-- ---------------------------------------------------------------------------
+-- 6. Het wachtwoord van een link eindeloos blijven raden.
+-- ---------------------------------------------------------------------------
+begin;
+set local role authenticated;
+set local camp.test_uid = '11111111-1111-1111-1111-111111111111';
+select public.camp_create_link_share(
+  'aaaaaaaa-0000-0000-0000-000000000001',
+  encode(extensions.digest('brute-force-token','sha256'),'hex'),
+  'exact', 'geheim', 'test', null, null, true, true, false
+) is not null as aangemaakt;
+commit;
+
+begin;
+set local role anon;
+do $$
+declare
+  antwoord text;
+begin
+  for i in 1..10 loop
+    antwoord := public.camp_open_share('brute-force-token', 'fout' || i::text) ->> 'error';
+  end loop;
+  -- Na tien misgokken hoort de link op slot te zitten, ook met het JUISTE
+  -- wachtwoord.
+  antwoord := public.camp_open_share('brute-force-token', 'geheim') ->> 'error';
+  if antwoord is distinct from 'locked' then
+    raise exception 'Wachtwoord raden wordt niet afgeremd (antwoord: %)', antwoord;
+  end if;
+  raise notice 'Wachtwoord raden: op slot na 10 pogingen';
+end;
+$$;
+commit;
+
+-- ---------------------------------------------------------------------------
+-- 7. De keepalive-tabel als gratis schrijfruimte gebruiken.
+-- ---------------------------------------------------------------------------
+begin;
+set local role anon;
+do $$
+declare
+  gelukt boolean := false;
+begin
+  begin
+    insert into public.camp_keepalive (id) values ('rommel-van-een-vreemde');
+    gelukt := true;
+  exception when others then
+    gelukt := false;
+  end;
+  if gelukt then
+    raise exception 'Iedereen kan willekeurige rijen in camp_keepalive schrijven';
+  end if;
+  raise notice 'Keepalive: alleen de vaste rij';
+end;
+$$;
+rollback;
+
+\echo 'Alle aanvallen afgeslagen.'

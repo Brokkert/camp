@@ -81,6 +81,14 @@ mailserver omheen komt.
 
 ## Hoe veilig is het echt
 
+Het model is niet alleen bedacht maar ook aangevallen. In
+[`supabase/test.sql`](supabase/test.sql) staan de scenario's die een
+kwaadwillend account zou proberen; ze draaien bij elke push. Eén ervan werkte
+in een eerdere versie echt: je kon een share aanmaken die naar **andermans**
+plek wees en jezelf als ontvanger opgeven, waarna je de exacte coördinaten
+kreeg. Eigenaar zijn van de share werd gecontroleerd, eigenaar zijn van de plek
+niet. Dat is dichtgezet in het schrijfbeleid én nog een keer bij het uitlezen.
+
 Wat goed geregeld is:
 
 - `camp_spots` is via Row Level Security strikt van de eigenaar. Andere accounts
@@ -93,13 +101,21 @@ Wat goed geregeld is:
 - Wachtwoorden op een link staan als bcrypt-hash.
 - Een share is in te trekken, kan verlopen en kan een maximum aantal keer
   bekeken worden. Je ziet per share hoe vaak dat gebeurd is.
+- Wie het token heeft maar het wachtwoord niet, mag tien keer misgokken. Daarna
+  gaat de link op slot. bcrypt is traag, maar traag is niet hetzelfde als
+  eindig.
+- Een account aanmaken levert geen ledenlijst op: je ziet alleen profielen van
+  mensen met wie je bevriend bent of in een groep zit. Iemand toevoegen gaat via
+  een zoekopdracht op exacte naam, niet via bladeren.
 
 Wat je moet weten:
 
 - **Foto's staan in een openbare bucket met onraadbare bestandsnamen.** Dat is
   hetzelfde model als een geheime link: niet te raden, maar wie de URL heeft, kan
   hem zien. Daarom stuurt Camp foto's alleen mee bij een share op "precies" of
-  "ongeveer" — een foto verraadt vaak toch waar je stond.
+  "ongeveer" — een foto verraadt vaak toch waar je stond. Het *opsommen* van de
+  paden is wel dicht: zonder die beperking is "onraadbaar" niets waard, want dan
+  vraag je de namen gewoon op.
 - **Een export bevat je exacte coördinaten.** Een GPX-bestand kent geen
   vervaging. Bewaar het zo zorgvuldig als de plekken zelf.
 - **Wie "precies" krijgt, heeft het gewoon.** Camp kan voorkomen dat er te veel

@@ -104,6 +104,10 @@ Wat je moet weten:
   vervaging. Bewaar het zo zorgvuldig als de plekken zelf.
 - **Wie "precies" krijgt, heeft het gewoon.** Camp kan voorkomen dat er te veel
   vertrekt, maar niet dat iemand doorstuurt wat hij al heeft.
+- **Zet aanmelden dicht als de repo publiek is.** Je publishable key staat dan
+  open, en daarmee kan een vreemde een eigen account in jouw project maken. Van
+  jouw plekken ziet hij niets, maar hij gebruikt wel je quotum. Eén schakelaar
+  in Supabase; staat in [SUPABASE_SETUP.md](SUPABASE_SETUP.md) onder stap 5.
 - Camp versleutelt niet client-side. Wie beheerderstoegang tot jouw
   Supabase-project heeft, kan bij de coördinaten — dat ben jij, en dat is de
   bedoeling.

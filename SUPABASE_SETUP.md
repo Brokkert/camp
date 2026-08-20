@@ -89,7 +89,34 @@ alle beveiliging.
 > Voor een gedeelde link moeten ze wél in `config.js` staan, want de ontvanger
 > heeft jouw browser niet.
 
-## 5. De keepalive aanzetten
+## 5. Bepaal wie een account mag maken
+
+Dit is het enige punt waarop "publieke repo" bij Camp iets uitmaakt, dus lees
+het even.
+
+Je publishable key staat straks in een openbare repo. Dat is veilig voor je
+plekken: Row Level Security zorgt dat een vreemde de tabellen simpelweg leeg
+ziet, en delen loopt via functies die eerst vervagen. Maar met die sleutel kan
+iemand wél een *account* aanmaken in jouw project. Hij ziet daarmee niets van
+jou — alleen zijn eigen lege kluis — maar hij gebruikt je gratis quotum en kan
+handles opzoeken.
+
+Voor een app voor jou en je vrienden wil je dat waarschijnlijk dichtzetten.
+Onder **Authentication → Sign In / Providers → Email**:
+
+- Zet **Allow new users to sign up** uit.
+- Nodig je vrienden daarna handmatig uit via **Authentication → Users → Invite**.
+  Ze krijgen een mail, klikken, en zitten erin.
+
+Wil je het opener houden, dan kun je in plaats daarvan onder **Authentication →
+Attack Protection** een lijst met toegestane e-mailadressen of domeinen zetten.
+
+> Dit is precies het verschil met Paklijst en CATANIA. Daar is de sleutel de
+> enige drempel, want het beleid staat op `anon_all` — wie de sleutel heeft, kan
+> alles. Hier is de sleutel géén drempel en hoeft dat ook niet te zijn; de
+> drempel staat in de database.
+
+## 6. De keepalive aanzetten
 
 Supabase pauzeert gratis projecten als er te weinig gebeurt. In
 [`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml) staat een

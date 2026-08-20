@@ -89,32 +89,27 @@ alle beveiliging.
 > Voor een gedeelde link moeten ze wél in `config.js` staan, want de ontvanger
 > heeft jouw browser niet.
 
-## 5. Bepaal wie een account mag maken
+## 5. Wat open aanmelden betekent
 
-Dit is het enige punt waarop "publieke repo" bij Camp iets uitmaakt, dus lees
-het even.
+Je publishable key komt in een openbare repo en in de JavaScript die elke
+bezoeker binnenhaalt. Iedereen die hem oppikt kan daarmee een **account** maken
+in jouw project. Dat is een bewuste keuze en prima; dit is wat het wel en niet
+betekent.
 
-Je publishable key staat straks in een openbare repo. Dat is veilig voor je
-plekken: Row Level Security zorgt dat een vreemde de tabellen simpelweg leeg
-ziet, en delen loopt via functies die eerst vervagen. Maar met die sleutel kan
-iemand wél een *account* aanmaken in jouw project. Hij ziet daarmee niets van
-jou — alleen zijn eigen lege kluis — maar hij gebruikt je gratis quotum en kan
-handles opzoeken.
+**Wat zo iemand niet kan.** Van jouw plekken ziet hij niets. Zonder account
+weigert de database elke tabel; mét account komt hij wel langs de rechten maar
+filtert Row Level Security alles weg — nul rijen, alleen zijn eigen kluis. Dat
+staat getoetst in `supabase/test.sql`.
 
-Voor een app voor jou en je vrienden wil je dat waarschijnlijk dichtzetten.
-Onder **Authentication → Sign In / Providers → Email**:
+**Wat hij wel kan.** Een eigen kluis vullen, en foto's uploaden naar zijn eigen
+map. Dat gaat van jouw gratis quotum af (500 MB database, 1 GB opslag). Daarom
+staat er een grens op de bucket: maximaal 5 MB per bestand en alleen
+afbeeldingen. De app verkleint foto's zelf tot zo'n 200 kB, dus je merkt er
+niets van.
 
-- Zet **Allow new users to sign up** uit.
-- Nodig je vrienden daarna handmatig uit via **Authentication → Users → Invite**.
-  Ze krijgen een mail, klikken, en zitten erin.
-
-Wil je het opener houden, dan kun je in plaats daarvan onder **Authentication →
-Attack Protection** een lijst met toegestane e-mailadressen of domeinen zetten.
-
-> Dit is precies het verschil met Paklijst en CATANIA. Daar is de sleutel de
-> enige drempel, want het beleid staat op `anon_all` — wie de sleutel heeft, kan
-> alles. Hier is de sleutel géén drempel en hoeft dat ook niet te zijn; de
-> drempel staat in de database.
+**Als je er later toch vanaf wilt**, staat de knop onder **Authentication →
+Sign In / Providers → Email**: zet *Allow new users to sign up* uit en nodig je
+vrienden handmatig uit via **Authentication → Users → Invite**.
 
 ### Eén ding om even na te kijken
 

@@ -539,3 +539,24 @@ begin
 end;
 $$;
 commit;
+
+-- ---------------------------------------------------------------------------
+-- Grenzen aan de opslag
+-- ---------------------------------------------------------------------------
+-- Aanmelden staat open, dus iemand met een vers account mag naar zijn eigen map
+-- schrijven. Dat is de bedoeling — maar niet ongelimiteerd.
+do $$
+declare
+  b record;
+begin
+  select * into b from storage.buckets where id = 'camp-photos';
+  if b.file_size_limit is null or b.file_size_limit > 10485760 then
+    raise exception 'Geen zinnige maximale bestandsgrootte op de fotobucket';
+  end if;
+  if b.allowed_mime_types is null or 'application/zip' = any(b.allowed_mime_types) then
+    raise exception 'De fotobucket accepteert meer dan afbeeldingen';
+  end if;
+  raise notice 'Fotobucket: max % MB, alleen %',
+    b.file_size_limit / 1048576, array_to_string(b.allowed_mime_types, ', ');
+end;
+$$;

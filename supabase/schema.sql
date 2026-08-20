@@ -647,9 +647,20 @@ create trigger camp_on_auth_user_created
 -- Publieke bucket met onraadbare uuid-bestandsnamen (capability-URL's), zodat
 -- ook iemand zonder account een gedeelde foto kan zien. Alleen de eigenaar
 -- mag uploaden en verwijderen.
-insert into storage.buckets (id, name, public)
-values ('camp-photos', 'camp-photos', true)
-on conflict (id) do nothing;
+-- De limieten staan hier bewust op de bucket zelf en niet in de app: de app is
+-- te omzeilen, de bucket niet. Iedereen met een account mag naar zijn eigen map
+-- schrijven, en dat is prima — maar dan wel binnen deze grenzen, anders is 1 GB
+-- gratis opslag zo volgezet door een vreemde.
+--
+-- De app verkleint foto's tot ongeveer 200 kB, dus 5 MB is ruim; het is een
+-- bovengrens tegen misbruik, geen richtlijn.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('camp-photos', 'camp-photos', true, 5242880,
+        array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set public             = excluded.public,
+      file_size_limit    = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
 
 -- Alleen de eigenaar mag de objecten OPSOMMEN. De bucket staat op openbaar,
 -- dus /storage/v1/object/public/... blijft voor iedereen bereikbaar en gedeelde

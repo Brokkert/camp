@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { kindOf } from '../data/taxonomy.js';
@@ -63,6 +63,7 @@ export default function MapView({
   center = [5.5, 50.2],
   zoom = 5,
   follow = null,
+  fit = null,
   className = 'map-full',
   interactive = true,
   hint = null,
@@ -72,6 +73,7 @@ export default function MapView({
   const markers = useRef([]);
   const [basemap, setBasemap] = useState(() => localStorage.getItem('camp:basemap') || 'liberty');
   const [locating, setLocating] = useState(false);
+  const hasFitted = useRef(false);
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
 
@@ -173,6 +175,48 @@ export default function MapView({
     return () => map.current?.off('styledata', drawCircles);
   }, [spots, onSelect]);
 
+  /**
+   * Bij het openen naar je eigen plekken toe. Zonder dit staat de kaart altijd
+   * op een vast punt en zie je niets als je plek ergens anders ligt — de speld
+   * staat er dan wel, maar buiten beeld.
+   *
+   * Eén keer, want daarna is het jouw kaart: niemand wil dat hij terugspringt
+   * zodra je hebt weggesleept.
+   */
+  const fitToSpots = useCallback((punten, instant = true) => {
+    const bruikbaar = (punten || []).filter(
+      (s) => Number.isFinite(s.lat) && Number.isFinite(s.lng)
+    );
+    if (!map.current || !bruikbaar.length) return false;
+
+    if (bruikbaar.length === 1) {
+      map.current[instant ? 'jumpTo' : 'flyTo']({
+        center: [bruikbaar[0].lng, bruikbaar[0].lat],
+        zoom: 13,
+      });
+      return true;
+    }
+
+    const bounds = bruikbaar.reduce(
+      (b, s) => b.extend([s.lng, s.lat]),
+      new maplibregl.LngLatBounds(
+        [bruikbaar[0].lng, bruikbaar[0].lat],
+        [bruikbaar[0].lng, bruikbaar[0].lat]
+      )
+    );
+    map.current.fitBounds(bounds, {
+      padding: 64,
+      maxZoom: 14,
+      duration: instant ? 0 : 800,
+    });
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (hasFitted.current || !fit?.length) return;
+    if (fitToSpots(fit)) hasFitted.current = true;
+  }, [fit, fitToSpots]);
+
   // Van buitenaf ergens naartoe vliegen.
   useEffect(() => {
     if (!map.current || !follow) return;
@@ -216,6 +260,11 @@ export default function MapView({
           <button onClick={locate} title="Waar ben ik?">
             {locating ? <span className="spinner" /> : '📍'}
           </button>
+          {fit?.length > 0 && (
+            <button onClick={() => fitToSpots(fit, false)} title="Toon al mijn plekken">
+              ⛺
+            </button>
+          )}
         </div>
       )}
       {hint && <div className="map-hint">{hint}</div>}

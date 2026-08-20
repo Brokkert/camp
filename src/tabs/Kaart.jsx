@@ -23,6 +23,7 @@ export default function Kaart({ spots, shared, onOpen, onDrop, follow }) {
     <>
       <MapView
         spots={alles}
+        fit={alles}
         onPick={handlePick}
         onSelect={(spot) => !dropping && onOpen(spot)}
         follow={follow}

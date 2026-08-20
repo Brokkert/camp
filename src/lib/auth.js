@@ -55,7 +55,15 @@ function redirectTarget() {
  * Mét code mag er wel een account bij, en gaat de code mee in options.data zodat
  * de trigger in de database hem kan controleren.
  */
-export async function sendMagicLink(email, { invite = null } = {}) {
+export async function needsBootstrap() {
+  const supabase = getClient();
+  if (!supabase) return false;
+  const { data, error } = await supabase.rpc('camp_needs_bootstrap');
+  if (error) return false;
+  return Boolean(data);
+}
+
+export async function sendMagicLink(email, { invite = null, allowCreate = false } = {}) {
   const supabase = getClient();
   if (!supabase) throw new Error('Camp is nog niet aan een Supabase-project gekoppeld.');
 
@@ -63,7 +71,7 @@ export async function sendMagicLink(email, { invite = null } = {}) {
     email: email.trim(),
     options: {
       emailRedirectTo: redirectTarget(),
-      shouldCreateUser: Boolean(invite),
+      shouldCreateUser: Boolean(invite) || allowCreate,
       ...(invite ? { data: { invite } } : {}),
     },
   });

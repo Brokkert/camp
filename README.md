@@ -168,8 +168,9 @@ Wat je moet weten:
 - **Aanmelden kan alleen met een uitnodigingslink.** De voorpagina biedt het niet
   aan, en dat is niet alleen verstoppen: de database weigert elke nieuwe
   gebruiker zonder geldige code, ook wie het formulier overslaat. Codes lopen af,
-  zijn te beperken tot één gebruik en zijn in te trekken. De allereerste
-  gebruiker mag zonder — dat ben jij.
+  zijn te beperken tot één gebruik en zijn in te trekken. Op een gloednieuw
+  project biedt het scherm eenmalig wel aanmelden aan, zodat de eerste gebruiker
+  niet buitengesloten raakt; die deur valt dicht zodra er iemand binnen is.
 - Er staat een grens op de fotobucket (5 MB per bestand, alleen afbeeldingen),
   zodat een account je gratis opslag niet kan volzetten.
 - Camp versleutelt niet client-side. Wie beheerderstoegang tot jouw

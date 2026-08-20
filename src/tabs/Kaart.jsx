@@ -5,7 +5,7 @@ import MapView from '../components/MapView.jsx';
  * De kaart met alles erop: je eigen plekken in oker, wat met jou gedeeld is in
  * blauw (met een cirkel eromheen als het vervaagd is).
  */
-export default function Kaart({ spots, shared, onOpen, onDrop, follow }) {
+export default function Kaart({ spots, shared, onOpen, onDrop, follow, here }) {
   const [dropping, setDropping] = useState(false);
 
   const alles = [
@@ -23,6 +23,8 @@ export default function Kaart({ spots, shared, onOpen, onDrop, follow }) {
     <>
       <MapView
         spots={alles}
+        fit={alles}
+        here={here}
         onPick={handlePick}
         onSelect={(spot) => !dropping && onOpen(spot)}
         follow={follow}

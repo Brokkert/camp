@@ -16,6 +16,17 @@
 \set ON_ERROR_STOP on
 \pset pager off
 
+\echo ''
+\echo '### Een leeg project herkent zichzelf als leeg'
+do $$
+begin
+  if not public.camp_needs_bootstrap() then
+    raise exception 'Leeg project meldt zich niet als leeg; de eerste gebruiker komt er dan nooit in';
+  end if;
+  raise notice 'Leeg project: eerste aanmelding wordt aangeboden';
+end;
+$$;
+
 -- De eerste gebruiker mag zonder uitnodiging binnen; daarna is er een geldige
 -- code nodig. Voor de rest van de tests maken we er dus eerst een aan.
 insert into auth.users (id, email) values
@@ -696,3 +707,13 @@ begin
 end;
 $$;
 commit;
+
+-- En zodra er iemand is, hoort die deur weer dicht te zijn.
+do $$
+begin
+  if public.camp_needs_bootstrap() then
+    raise exception 'Project met gebruikers biedt nog steeds vrije aanmelding aan';
+  end if;
+  raise notice 'Project met gebruikers: vrije aanmelding dicht';
+end;
+$$;

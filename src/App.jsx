@@ -160,6 +160,7 @@ export default function App() {
             onOpen={openSpot}
             onDrop={(point) => setEditing({ ...point })}
             follow={follow}
+            here={here}
           />
         )}
 

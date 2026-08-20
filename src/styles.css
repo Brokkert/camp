@@ -405,6 +405,13 @@ a { color: var(--water); }
 .maplibregl-ctrl-attrib a { color: var(--ink-soft) !important; }
 [data-theme='dark'] .maplibregl-ctrl-attrib { background: rgba(13, 17, 20, 0.7) !important; }
 
+/* Maplibre positioneert dit omhulsel; de speld erbinnen houdt zijn eigen draai. */
+.pin-wrap {
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+}
+
 .pin {
   width: 30px;
   height: 30px;
@@ -700,3 +707,26 @@ a { color: var(--water); }
 .fallback > summary::-webkit-details-marker { display: none; }
 .fallback > summary::before { content: '▸ '; color: var(--ink-faint); }
 .fallback[open] > summary::before { content: '▾ '; }
+
+/* Hier sta jij. Bewust anders van vorm dan een speld: dit is geen plek. */
+.here-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--water);
+  border: 2.5px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 2px 7px rgba(0, 0, 0, 0.4);
+  position: relative;
+}
+.here-dot::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--water);
+  animation: hier 2s ease-out infinite;
+}
+@keyframes hier {
+  0% { transform: scale(0.7); opacity: 0.9; }
+  100% { transform: scale(2.1); opacity: 0; }
+}

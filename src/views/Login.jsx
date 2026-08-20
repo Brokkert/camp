@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Note, Field } from '../components/ui.jsx';
-import { sendMagicLink, verifyCode } from '../lib/auth.js';
+import { sendMagicLink, verifyCode, needsBootstrap } from '../lib/auth.js';
 import { localVaultSize } from '../lib/vault.js';
 
 /**
@@ -14,19 +14,35 @@ export default function Login({ configured, onSkip, joinCode = null }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // Gloednieuw project? Dan mag de eerste gebruiker zonder uitnodiging binnen,
+  // en moet dit scherm dat ook aanbieden — anders zit die eerste gebruiker
+  // klem: aanmelden staat dicht en een uitnodiging maken kan alleen als je al
+  // ingelogd bent.
+  const [firstUser, setFirstUser] = useState(false);
+
+  useEffect(() => {
+    if (!configured) return;
+    let alive = true;
+    needsBootstrap().then((v) => alive && setFirstUser(v));
+    return () => {
+      alive = false;
+    };
+  }, [configured]);
+
+  const canCreate = Boolean(joinCode) || firstUser;
 
   const send = async () => {
     setBusy(true);
     setError(null);
     try {
-      await sendMagicLink(email, { invite: joinCode });
+      await sendMagicLink(email, { invite: joinCode, allowCreate: firstUser });
       setSent(true);
     } catch (e) {
       // Supabase weigert een onbekend adres als er geen uitnodiging meegaat.
       // Die foutmelding is Engels en cryptisch; hier staat wat er aan de hand is.
       const onbekend = /signup|not allowed|not found|Signups/i.test(e.message);
       setError(
-        onbekend && !joinCode
+        onbekend && !canCreate
           ? 'Dit adres heeft nog geen Camp-account. Aanmelden kan alleen via een uitnodigingslink — vraag er iemand om.'
           : e.message
       );
@@ -50,7 +66,7 @@ export default function Login({ configured, onSkip, joinCode = null }) {
 
   return (
     <div className="login-wrap topo">
-      <div className="logo">{joinCode ? '✉️' : '⛺'}</div>
+      <div className="logo">{joinCode ? '✉️' : firstUser ? '🌱' : '⛺'}</div>
       <h1>Camp</h1>
       <div className="rule" />
       <p className="tag">
@@ -59,6 +75,12 @@ export default function Login({ configured, onSkip, joinCode = null }) {
             Je bent uitgenodigd.
             <br />
             Vul je e-mailadres in, dan zetten we je erin.
+          </>
+        ) : firstUser ? (
+          <>
+            Nog niemand hier.
+            <br />
+            Maak het eerste account aan — dat is dan meteen van jou.
           </>
         ) : (
           <>
@@ -105,10 +127,10 @@ export default function Login({ configured, onSkip, joinCode = null }) {
             disabled={busy || !email.includes('@')}
           >
             {busy ? <span className="spinner" /> : '✉️'}{' '}
-            {joinCode ? 'Account aanmaken' : 'Stuur me een link'}
+            {canCreate ? 'Account aanmaken' : 'Stuur me een link'}
           </button>
           <p className="tiny muted center" style={{ marginTop: 14, lineHeight: 1.6 }}>
-            {joinCode
+            {canCreate
               ? 'Geen wachtwoord. Je krijgt een mail met een link; klikken en je bent binnen.'
               : 'Geen wachtwoord — je krijgt een mail. Nog geen account? Dat kan alleen via een uitnodigingslink.'}
           </p>

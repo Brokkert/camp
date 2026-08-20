@@ -123,8 +123,11 @@ worden — en er staat alleen een hash van in de database, net als bij een
 deel-link.
 
 > **Meld jezelf als eerste aan.** De allereerste gebruiker mag zonder
-> uitnodiging binnen, anders kun je nooit beginnen. Doe dat dus meteen nadat je
-> `schema.sql` hebt gedraaid; daarna is er voor iedereen een code nodig.
+> uitnodiging binnen, anders kun je nooit beginnen. Zolang er nog niemand is,
+> biedt het inlogscherm dat uit zichzelf aan — je ziet dan *"Nog niemand hier.
+> Maak het eerste account aan"* met een knop **Account aanmaken**. Zodra jij
+> binnen bent verdwijnt die deur en heeft iedereen een uitnodiging nodig, jij
+> incluis.
 
 Vrienden uitnodigen doe je daarna in de app: **Meer → Mensen uitnodigen → Beheren**.
 Je krijgt een link die je doorstuurt. Wil je iemand alleen een plek laten zien,

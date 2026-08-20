@@ -618,6 +618,25 @@ revoke all on function public.camp_create_link_share(uuid, text, text, text, tex
 grant execute on function public.camp_create_link_share(uuid, text, text, text, text, timestamptz, int, boolean, boolean, boolean) to authenticated;
 
 -- ============================================================================
+-- RPC: is dit een gloednieuw project?
+-- ============================================================================
+-- De allereerste gebruiker mag zonder uitnodiging binnen, anders kun je nooit
+-- beginnen. Maar het inlogscherm moet dat wél weten: het maakt standaard geen
+-- accounts aan (shouldCreateUser: false), dus zonder deze vraag zit de eerste
+-- gebruiker klem in zijn eigen app.
+--
+-- Verklapt niets: geeft alleen true of false, geen aantallen en geen namen.
+create or replace function public.camp_needs_bootstrap()
+returns boolean
+language sql stable security definer set search_path = public, extensions, pg_temp
+as $$
+  select not exists (select 1 from public.camp_profiles);
+$$;
+
+revoke all on function public.camp_needs_bootstrap() from public;
+grant execute on function public.camp_needs_bootstrap() to anon, authenticated;
+
+-- ============================================================================
 -- RPC: profiel opzoeken op handle (om een vriend toe te voegen)
 -- ============================================================================
 create or replace function public.camp_find_profile(p_handle text)

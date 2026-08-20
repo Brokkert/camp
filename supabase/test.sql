@@ -19,7 +19,7 @@
 -- De eerste gebruiker mag zonder uitnodiging binnen; daarna is er een geldige
 -- code nodig. Voor de rest van de tests maken we er dus eerst een aan.
 insert into auth.users (id, email) values
-  ('11111111-1111-1111-1111-111111111111', 'laurens@uxit.nl');
+  ('11111111-1111-1111-1111-111111111111', 'eigenaar@voorbeeld.nl');
 
 insert into public.camp_invites (code_hash, created_by, label)
 values (encode(extensions.digest('test-uitnodiging','sha256'),'hex'),
@@ -381,8 +381,8 @@ set local role authenticated;
 set local camp.test_uid = '99999999-9999-9999-9999-999999999999';
 do $$
 begin
-  if public.camp_find_profile('laurens') is null
-     or public.camp_find_profile('laurens') = 'null'::jsonb then
+  if public.camp_find_profile('eigenaar') is null
+     or public.camp_find_profile('eigenaar') = 'null'::jsonb then
     raise exception 'Een vriend toevoegen op naam werkt niet meer';
   end if;
   raise notice 'Zoeken op handle: werkt nog';
@@ -653,3 +653,46 @@ end;
 $$;
 
 \echo 'Uitnodigingen doen wat ze moeten doen.'
+
+-- ---------------------------------------------------------------------------
+-- Geen e-mailadressen in het publieke schema
+-- ---------------------------------------------------------------------------
+-- auth.users heeft een e-mailkolom, maar dat schema stelt Supabase niet via de
+-- REST-API beschikbaar. Alles wat Camp zelf aanmaakt staat in "public", en daar
+-- hoort geen adres in te staan — ook niet per ongeluk, later, in een nieuwe
+-- kolom. Vandaar deze controle.
+do $$
+declare
+  gevonden text;
+begin
+  select string_agg(table_name || '.' || column_name, ', ')
+    into gevonden
+  from information_schema.columns
+  where table_schema = 'public'
+    and table_name like 'camp\_%'
+    and (column_name ilike '%email%' or column_name ilike '%mail%');
+
+  if gevonden is not null then
+    raise exception 'E-mailkolom in het publieke schema: %', gevonden;
+  end if;
+  raise notice 'Publiek schema: geen e-mailkolommen';
+end;
+$$;
+
+-- En het profiel dat een gedeelde link prijsgeeft, bevat er ook geen.
+begin;
+set local role anon;
+do $$
+declare
+  payload jsonb;
+begin
+  select public.camp_open_share('brute-force-token', 'geheim') into payload;
+  -- Die link zit inmiddels op slot; daarom kijken we naar de opbouw van de
+  -- eigenaar-informatie zoals camp_share_payload die maakt.
+  if payload::text ilike '%@%' then
+    raise exception 'Er zit een e-mailachtige waarde in wat een link prijsgeeft: %', payload;
+  end if;
+  raise notice 'Deel-link: geeft geen adres prijs';
+end;
+$$;
+commit;

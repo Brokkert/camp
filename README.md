@@ -135,6 +135,24 @@ Wat goed geregeld is:
   mensen met wie je bevriend bent of in een groep zit. Iemand toevoegen gaat via
   een zoekopdracht op exacte naam, niet via bladeren.
 
+### E-mailadressen
+
+Van jou en van iedereen die je uitnodigt:
+
+- **In de app en de database:** nergens. Geen enkele `camp_*`-tabel heeft een
+  e-mailkolom, en dat wordt bij elke push gecontroleerd. Adressen staan alleen in
+  `auth.users`, en dat schema stelt Supabase niet via de REST-API beschikbaar —
+  zet het daar dus ook nooit bij (Settings → API → Exposed schemas).
+- **Voor je vrienden:** die zien je weergavenaam en je handle, niet je adres.
+- **Voor iemand met een deel-link:** alleen de weergavenaam van wie deelde. Ook
+  dat wordt getoetst: er mag geen `@` in zitten wat een link prijsgeeft.
+- **Voor een vreemde met de sleutel:** niets, want hij komt nergens bij.
+
+Eén nuance: bij het aanmaken van je account wordt je handle en weergavenaam
+afgeleid van het deel vóór de `@`. Bij `jasper@example.com` word je dus
+`jasper`. Dat is je adres niet, maar wel een stukje ervan; je kunt beide
+veranderen onder **Meer**.
+
 Wat je moet weten:
 
 - **Foto's staan in een openbare bucket met onraadbare bestandsnamen.** Dat is

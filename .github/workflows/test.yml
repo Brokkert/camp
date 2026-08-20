@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  vitest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+        env:
+          # smoke.mjs gebruikt playwright, maar CI draait alleen vitest — geen
+          # reden om bij elke build een browser van honderd MB op te halen.
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      - run: npm test
+      - run: npm run build
+
+  database:
+    # Draait schema.sql en de bijbehorende controles tegen een echte
+    # PostgreSQL, zodat het beveiligingsmodel niet stilletjes kan verschuiven.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL installeren
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql postgresql-client
+      - name: Schema en controles draaien
+        run: |
+          # initdb weigert als root te draaien, en de postgres-gebruiker komt
+          # niet in de workspace van de runner; vandaar de kopie.
+          sudo cp -r supabase /var/tmp/camp-sql
+          sudo chown -R postgres /var/tmp/camp-sql
+          sudo -u postgres env \
+            PGBIN=$(ls -d /usr/lib/postgresql/*/bin | tail -1) \
+            CAMP_PGDATA=/var/tmp/camp-testdb \
+            bash /var/tmp/camp-sql/run-tests.sh

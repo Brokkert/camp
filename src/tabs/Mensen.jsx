@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Empty, Field, Note, Sheet } from '../components/ui.jsx';
 import {
-  listFriends, listCircles, findByHandle, requestFriend, acceptFriend, removeFriend,
+  listFriends, listCircles, searchProfiles, requestFriend, acceptFriend, removeFriend,
   createCircle, deleteCircle, addToCircle, removeFromCircle,
 } from '../lib/social.js';
 
@@ -77,7 +77,8 @@ export default function Mensen({ profile, onChanged }) {
       {!friends.friends.length && !friends.outgoing.length && (
         <Empty art="🧭" title="Nog geen vrienden">
           Voeg iemand toe op hun naam, dan kun je plekken rechtstreeks met ze delen — dat blijft
-          staan, ook als een link kwijtraakt.
+          staan, ook als een link kwijtraakt. Let op: het telt pas als de ander je verzoek
+          accepteert.
         </Empty>
       )}
       {friends.friends.map((f) => (
@@ -158,19 +159,22 @@ export default function Mensen({ profile, onChanged }) {
 }
 
 function AddFriend({ onClose, onAdded }) {
-  const [handle, setHandle] = useState('');
-  const [found, setFound] = useState(null);
+  const [term, setTerm] = useState('');
+  const [treffers, setTreffers] = useState(null);
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const search = async () => {
+  const kort = term.trim().length < 3;
+
+  const zoek = async () => {
+    if (kort) return;
     setBusy(true);
     setStatus(null);
-    setFound(null);
+    setTreffers(null);
     try {
-      const profile = await findByHandle(handle);
-      if (profile) setFound(profile);
-      else setStatus({ tone: 'bad', text: 'Niemand met die naam gevonden.' });
+      const gevonden = await searchProfiles(term);
+      setTreffers(gevonden);
+      if (!gevonden.length) setStatus({ tone: 'bad', text: 'Niemand gevonden die zo begint.' });
     } catch (e) {
       setStatus({ tone: 'bad', text: e.message });
     } finally {
@@ -178,53 +182,61 @@ function AddFriend({ onClose, onAdded }) {
     }
   };
 
+  const vraag = async (profiel) => {
+    try {
+      await requestFriend(profiel.id);
+      onAdded();
+    } catch (e) {
+      setStatus({
+        tone: 'bad',
+        text: e.message.includes('duplicate')
+          ? 'Je hebt deze persoon al gevraagd.'
+          : e.message,
+      });
+    }
+  };
+
   return (
     <Sheet title="Vriend toevoegen" onClose={onClose}>
       {status && <Note tone={status.tone}>{status.text}</Note>}
-      <Field label="Hun naam" hint="Die staat bovenaan bij Mensen, in hun eigen app.">
+
+      <Field
+        label="Hun naam"
+        hint="Het begin is genoeg — minstens drie letters. Hun naam staat bovenaan bij Mensen, in hun eigen app."
+      >
         <div className="row" style={{ gap: 7 }}>
           <input
             className="input grow"
-            value={handle}
-            placeholder="jasper"
+            value={term}
+            placeholder="jas"
             autoFocus
-            onChange={(e) => setHandle(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && search()}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
+            onChange={(e) => setTerm(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && zoek()}
           />
-          <button className="btn" onClick={search} disabled={busy || !handle.trim()}>
+          <button className="btn" onClick={zoek} disabled={busy || kort}>
             {busy ? <span className="spinner" /> : 'Zoek'}
           </button>
         </div>
       </Field>
 
-      {found && (
-        <div className="card">
+      {treffers?.map((profiel) => (
+        <div className="card tight" key={profiel.id}>
           <div className="row">
             <div className="grow">
-              <div className="strong">{found.emoji} {found.display_name || found.handle}</div>
-              <div className="tiny muted">@{found.handle}</div>
+              <div className="strong">
+                {profiel.emoji} {profiel.display_name || profiel.handle}
+              </div>
+              <div className="tiny muted">@{profiel.handle}</div>
             </div>
-            <button
-              className="btn primary sm"
-              onClick={async () => {
-                try {
-                  await requestFriend(found.id);
-                  onAdded();
-                } catch (e) {
-                  setStatus({
-                    tone: 'bad',
-                    text: e.message.includes('duplicate')
-                      ? 'Je hebt deze persoon al gevraagd.'
-                      : e.message,
-                  });
-                }
-              }}
-            >
+            <button className="btn primary sm" onClick={() => vraag(profiel)}>
               Vragen
             </button>
           </div>
         </div>
-      )}
+      ))}
     </Sheet>
   );
 }

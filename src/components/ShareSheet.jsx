@@ -311,7 +311,8 @@ export default function ShareSheet({ spot, onClose, friends = [], circles = [] }
           {!friends.length && !circles.length ? (
             <Note tone="info">
               Nog geen vrienden of groepen. Voeg iemand toe bij <strong>Mensen</strong>, dan kun je
-              rechtstreeks delen — dat blijft staan, ook als de link kwijtraakt.
+              rechtstreeks delen — dat blijft staan, ook als de link kwijtraakt. Een verzoek dat nog
+              niet geaccepteerd is telt hier niet mee; tot die tijd gebruik je een geheime link.
             </Note>
           ) : (
             <>

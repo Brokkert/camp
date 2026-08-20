@@ -185,7 +185,8 @@ alter table public.camp_share_views    enable row level security;
 -- Profielen: alleen van mensen met wie je iets te maken hebt. "Iedereen die
 -- ingelogd is mag alles zien" was makkelijker, maar dan kan iemand die een
 -- account aanmaakt de complete ledenlijst uitlezen. Een vriend zoeken gaat via
--- camp_find_profile(), dat exact op handle matcht en dus geen lijst oplevert.
+-- camp_search_profiles(), dat minstens drie tekens vraagt, alleen vanaf het
+-- begin van de naam matcht en hoogstens acht regels teruggeeft.
 create or replace function public.camp_can_see_profile(p_target uuid)
 returns boolean
 language sql stable security definer set search_path = public, extensions, pg_temp
@@ -637,21 +638,41 @@ revoke all on function public.camp_needs_bootstrap() from public;
 grant execute on function public.camp_needs_bootstrap() to anon, authenticated;
 
 -- ============================================================================
--- RPC: profiel opzoeken op handle (om een vriend toe te voegen)
+-- RPC: iemand zoeken om toe te voegen
 -- ============================================================================
-create or replace function public.camp_find_profile(p_handle text)
+-- Zoekt op het begin van de naam, niet op de hele naam: wie "jas" intypt hoort
+-- @jasper te vinden.
+--
+-- Drie grenzen houden dit een opzoekactie in plaats van een ledenlijst: minstens
+-- drie tekens, alleen vanaf het begin van de naam (dus geen enkele letter die
+-- half het bestand teruggeeft), en maximaal acht regels. Jezelf laten we eruit;
+-- je kunt geen vriend van jezelf worden.
+create or replace function public.camp_search_profiles(p_term text)
 returns jsonb
 language sql stable security definer set search_path = public, extensions, pg_temp
 as $$
-  select coalesce(jsonb_build_object('id', id, 'handle', handle,
-                                     'display_name', display_name, 'emoji', emoji), 'null'::jsonb)
-  from public.camp_profiles
-  where lower(handle) = lower(trim(p_handle))
-  limit 1;
+  select coalesce(jsonb_agg(regel order by regel->>'handle'), '[]'::jsonb)
+  from (
+    select jsonb_build_object(
+             'id', id, 'handle', handle,
+             'display_name', display_name, 'emoji', emoji
+           ) as regel
+    from public.camp_profiles
+    where length(trim(coalesce(p_term, ''))) >= 3
+      and id <> auth.uid()
+      and (
+        lower(handle) like lower(trim(p_term)) || '%'
+        or lower(display_name) like lower(trim(p_term)) || '%'
+      )
+    limit 8
+  ) treffers;
 $$;
 
-revoke all on function public.camp_find_profile(text) from public;
-grant execute on function public.camp_find_profile(text) to authenticated;
+revoke all on function public.camp_search_profiles(text) from public;
+grant execute on function public.camp_search_profiles(text) to authenticated;
+
+-- De oude versie matchte alleen op de volledige naam.
+drop function if exists public.camp_find_profile(text);
 
 -- ============================================================================
 -- Nieuwe gebruikers krijgen automatisch een profiel

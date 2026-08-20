@@ -3,10 +3,14 @@
 
 import { getClient } from './supabase.js';
 
-export async function findByHandle(handle) {
-  const { data, error } = await getClient().rpc('camp_find_profile', { p_handle: handle });
+/**
+ * Zoekt mensen op het begin van hun naam. Geeft een lijst terug, want "jas"
+ * kan bij meer dan één iemand passen.
+ */
+export async function searchProfiles(term) {
+  const { data, error } = await getClient().rpc('camp_search_profiles', { p_term: term });
   if (error) throw error;
-  return data || null;
+  return Array.isArray(data) ? data : [];
 }
 
 export async function requestFriend(userId) {

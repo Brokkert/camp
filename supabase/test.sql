@@ -384,19 +384,43 @@ $$;
 commit;
 
 -- ---------------------------------------------------------------------------
--- 5. Iemand zoeken die nog geen vriend is, moet blijven werken — dat loopt
---    via camp_find_profile(), dat exact op handle matcht en dus geen lijst is.
+-- 5. Iemand zoeken om toe te voegen, op een stukje van de naam. Moet blijven
+--    werken voor wie nog geen vriend is, maar mag geen ledenlijst worden.
 -- ---------------------------------------------------------------------------
 begin;
 set local role authenticated;
 set local camp.test_uid = '99999999-9999-9999-9999-999999999999';
 do $$
+declare
+  n int;
 begin
-  if public.camp_find_profile('eigenaar') is null
-     or public.camp_find_profile('eigenaar') = 'null'::jsonb then
-    raise exception 'Een vriend toevoegen op naam werkt niet meer';
+  -- Een stukje van de naam vindt de persoon.
+  if jsonb_array_length(public.camp_search_profiles('eige')) <> 1 then
+    raise exception 'Zoeken op het begin van een naam vindt niemand';
   end if;
-  raise notice 'Zoeken op handle: werkt nog';
+
+  -- Twee tekens is te weinig; anders kun je het bestand afstruinen.
+  if jsonb_array_length(public.camp_search_profiles('ei')) <> 0 then
+    raise exception 'Zoeken op twee tekens levert al treffers op';
+  end if;
+
+  -- Alleen vanaf het begin: een letter uit het midden hoort niets te geven.
+  if jsonb_array_length(public.camp_search_profiles('gena')) <> 0 then
+    raise exception 'Zoeken matcht midden in de naam; dat maakt het een ledenlijst';
+  end if;
+
+  -- Jezelf zit er niet bij.
+  select jsonb_array_length(public.camp_search_profiles('aanval')) into n;
+  if n <> 0 then
+    raise exception 'Je vindt jezelf in de zoekresultaten';
+  end if;
+
+  -- En er zit geen e-mailadres in wat je terugkrijgt.
+  if public.camp_search_profiles('eige')::text like '%@%' then
+    raise exception 'Zoekresultaat bevat een adres';
+  end if;
+
+  raise notice 'Zoeken op naam: werkt, en blijft een opzoekactie';
 end;
 $$;
 commit;

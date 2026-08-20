@@ -80,6 +80,45 @@ export default function MapView({
   const hasFitted = useRef(false);
   const meMarker = useRef(null);
   const [searching, setSearching] = useState(false);
+  const wantedCircles = useRef({ type: 'FeatureCollection', features: [] });
+
+  /**
+   * Zet de onzekerheidscirkels op de kaart. Stabiel van identiteit en leest de
+   * wens uit een ref, zodat een late 'styledata' nooit een verouderde situatie
+   * terugzet. Is de stijl nog niet klaar, dan doen we niets — maar dan komt er
+   * gegarandeerd nog een styledata of load achteraan die het alsnog toepast.
+   */
+  const applyCircles = useCallback(() => {
+    if (!map.current) return;
+    const data = wantedCircles.current;
+
+    // Bestaat de bron al, dan is bijwerken altijd veilig — ook terwijl de stijl
+    // nog laadt. Dat onderscheid is het hele punt: stond hier één slot voor
+    // allebei, dan bleef een cirkel staan zolang de stijl bezig was, en dus
+    // ook bij een share die de exacte plek geeft.
+    const existing = map.current.getSource?.('camp-fuzz');
+    if (existing) {
+      existing.setData(data);
+      map.current.triggerRepaint?.();
+      return;
+    }
+
+    // Toevoegen kan pas als de stijl er is; anders wacht styledata of load.
+    if (!map.current.isStyleLoaded?.()) return;
+    map.current.addSource('camp-fuzz', { type: 'geojson', data });
+    map.current.addLayer({
+      id: 'camp-fuzz-fill',
+      type: 'fill',
+      source: 'camp-fuzz',
+      paint: { 'fill-color': '#63b3e8', 'fill-opacity': 0.14 },
+    });
+    map.current.addLayer({
+      id: 'camp-fuzz-line',
+      type: 'line',
+      source: 'camp-fuzz',
+      paint: { 'line-color': '#63b3e8', 'line-width': 1.5, 'line-dasharray': [2, 2] },
+    });
+  }, []);
   const [myPos, setMyPos] = useState(here);
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
@@ -170,40 +209,31 @@ export default function MapView({
       );
     }
 
-    const drawCircles = () => {
-      if (!map.current?.isStyleLoaded()) return;
-      const features = spots
-        .filter((s) => s.radius_m > 0 && Number.isFinite(s.lat))
+    // De gewenste cirkels in een ref, niet in de closure van de luisteraar.
+    // Anders tekent een 'styledata' die later binnenkomt de situatie van een
+    // vorige render — en dat is precies hoe je een cirkel op het scherm houdt
+    // bij een share die in werkelijkheid de exacte plek geeft.
+    wantedCircles.current = {
+      type: 'FeatureCollection',
+      features: spots
+        .filter((s) => s.radius_m > 0 && Number.isFinite(s.lat) && Number.isFinite(s.lng))
         .map((s) => ({
           type: 'Feature',
           geometry: { type: 'Polygon', coordinates: [circlePolygon(s.lat, s.lng, s.radius_m)] },
           properties: {},
-        }));
-
-      const data = { type: 'FeatureCollection', features };
-      const existing = map.current.getSource('camp-fuzz');
-      if (existing) {
-        existing.setData(data);
-        return;
-      }
-      map.current.addSource('camp-fuzz', { type: 'geojson', data });
-      map.current.addLayer({
-        id: 'camp-fuzz-fill',
-        type: 'fill',
-        source: 'camp-fuzz',
-        paint: { 'fill-color': '#63b3e8', 'fill-opacity': 0.14 },
-      });
-      map.current.addLayer({
-        id: 'camp-fuzz-line',
-        type: 'line',
-        source: 'camp-fuzz',
-        paint: { 'line-color': '#63b3e8', 'line-width': 1.5, 'line-dasharray': [2, 2] },
-      });
+        })),
     };
 
-    drawCircles();
-    map.current.on('styledata', drawCircles);
-    return () => map.current?.off('styledata', drawCircles);
+    applyCircles();
+    // Zowel styledata als load: na een wissel van kaartlaag zijn alle lagen weg
+    // en moeten ze opnieuw. Wat er ook eerder misging, de eerstvolgende van deze
+    // twee zet het alsnog goed.
+    map.current.on('styledata', applyCircles);
+    map.current.on('load', applyCircles);
+    return () => {
+      map.current?.off('styledata', applyCircles);
+      map.current?.off('load', applyCircles);
+    };
   }, [spots, onSelect]);
 
   /**

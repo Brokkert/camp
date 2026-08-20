@@ -74,6 +74,7 @@ export default function MapView({
   const markers = useRef([]);
   const [basemap, setBasemap] = useState(() => localStorage.getItem('camp:basemap') || 'liberty');
   const [locating, setLocating] = useState(false);
+  const [locateHint, setLocateHint] = useState(null);
   const hasFitted = useRef(false);
   const meMarker = useRef(null);
   const [myPos, setMyPos] = useState(here);
@@ -265,8 +266,20 @@ export default function MapView({
         const punt = { lat: position.coords.latitude, lng: position.coords.longitude };
         setMyPos(punt);
         map.current?.jumpTo({ center: [punt.lng, punt.lat], zoom: 14 });
+        // Even zeggen dát het gelukt is. Zonder dit is "de kaart springt" het
+        // enige signaal, en dan weet je niet of de stip er hoort te staan.
+        setLocateHint(`Hier sta je · ±${Math.round(position.coords.accuracy)} m`);
+        setTimeout(() => setLocateHint(null), 4000);
       },
-      () => setLocating(false),
+      (err) => {
+        setLocating(false);
+        setLocateHint(
+          err.code === 1
+            ? 'Geen toestemming voor je locatie'
+            : 'Locatie ophalen lukte niet'
+        );
+        setTimeout(() => setLocateHint(null), 4000);
+      },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
@@ -295,7 +308,7 @@ export default function MapView({
           )}
         </div>
       )}
-      {hint && <div className="map-hint">{hint}</div>}
+      {(locateHint || hint) && <div className="map-hint">{locateHint || hint}</div>}
     </div>
   );
 }

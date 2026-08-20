@@ -47,8 +47,6 @@ export default function App() {
   const vault = useVault(user);
   const [shared, setShared] = useState([]);
   const [loadingShared, setLoadingShared] = useState(true);
-  const [friends, setFriends] = useState([]);
-  const [circles, setCircles] = useState([]);
 
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
@@ -178,13 +176,7 @@ export default function App() {
 
         {tab === 'mensen' &&
           (user ? (
-            <Mensen
-              profile={profile}
-              onChanged={(f, c) => {
-                setFriends(f);
-                setCircles(c);
-              }}
-            />
+            <Mensen profile={profile} />
           ) : (
             <Note tone="info">
               Vrienden en groepen werken alleen met een account. Ga naar <strong>Meer</strong> om in
@@ -247,8 +239,6 @@ export default function App() {
       {sharing && (
         <ShareSheet
           spot={sharing}
-          friends={friends}
-          circles={circles}
           onClose={() => setSharing(null)}
         />
       )}

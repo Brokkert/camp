@@ -7,6 +7,7 @@ import {
   shareWithUser, shareWithCircle, shareStatus,
 } from '../lib/sharing.js';
 import { qrCodeUrl } from '../lib/geo.js';
+import { listFriends, listCircles } from '../lib/social.js';
 import { formatDistance } from '../lib/coords.js';
 
 const dutchDate = (value) =>
@@ -142,7 +143,14 @@ function FreshLink({ url, passphrase, onDone }) {
   );
 }
 
-export default function ShareSheet({ spot, onClose, friends = [], circles = [] }) {
+export default function ShareSheet({ spot, onClose }) {
+  // Zelf ophalen in plaats van doorgegeven krijgen. Stond dit aan de App, dan
+  // was de lijst alleen gevuld als je toevallig eerst bij Mensen was geweest —
+  // en zag je hier "nog geen vrienden" terwijl je vriendschap gewoon
+  // geaccepteerd was.
+  const [friends, setFriends] = useState([]);
+  const [circles, setCircles] = useState([]);
+  const [loadingPeople, setLoadingPeople] = useState(true);
   const [tab, setTab] = useState('link');
   const [precision, setPrecision] = useState('fine');
   const [passphrase, setPassphrase] = useState('');
@@ -308,7 +316,11 @@ export default function ShareSheet({ spot, onClose, friends = [], circles = [] }
 
       {tab === 'wie' && (
         <>
-          {!friends.length && !circles.length ? (
+          {loadingPeople ? (
+            <div className="center" style={{ padding: 24 }}>
+              <span className="spinner" />
+            </div>
+          ) : !friends.length && !circles.length ? (
             <Note tone="info">
               Nog geen vrienden of groepen. Voeg iemand toe bij <strong>Mensen</strong>, dan kun je
               rechtstreeks delen — dat blijft staan, ook als de link kwijtraakt. Een verzoek dat nog

@@ -65,6 +65,7 @@ export default function MapView({
   follow = null,
   fit = null,
   here = null,
+  onLocated = null,
   className = 'map-full',
   interactive = true,
   hint = null,
@@ -280,6 +281,10 @@ export default function MapView({
         setLocating(false);
         const punt = { lat: position.coords.latitude, lng: position.coords.longitude };
         setMyPos(punt);
+        // Naar boven doorgeven, zodat de rest van de app weet waar je staat —
+        // anders blijft die kennis in de kaart hangen en moet je hem elders
+        // opnieuw opvragen.
+        onLocated?.(punt);
         map.current?.jumpTo({ center: [punt.lng, punt.lat], zoom: 14 });
         // Even zeggen dát het gelukt is. Zonder dit is "de kaart springt" het
         // enige signaal, en dan weet je niet of de stip er hoort te staan.

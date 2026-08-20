@@ -64,6 +64,7 @@ export default function MapView({
   zoom = 5,
   follow = null,
   fit = null,
+  here = null,
   className = 'map-full',
   interactive = true,
   hint = null,
@@ -74,6 +75,8 @@ export default function MapView({
   const [basemap, setBasemap] = useState(() => localStorage.getItem('camp:basemap') || 'liberty');
   const [locating, setLocating] = useState(false);
   const hasFitted = useRef(false);
+  const meMarker = useRef(null);
+  const [myPos, setMyPos] = useState(here);
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
 
@@ -123,17 +126,26 @@ export default function MapView({
     for (const spot of spots) {
       if (!Number.isFinite(spot.lat) || !Number.isFinite(spot.lng)) continue;
 
+      // Maplibre zet zijn positionering als inline transform op het element dat
+      // je meegeeft. Geef je daar de speld zelf, dan overschrijft dat de
+      // rotate(-45deg) die de druppelvorm maakt — en blijft alleen de
+      // tegen-rotatie van de emoji staan, die dan scheef hangt. Vandaar een
+      // omhulsel: maplibre verplaatst dat, de speld houdt zijn eigen draai.
+      const wrapper = document.createElement('div');
+      wrapper.className = 'pin-wrap';
+
       const element = document.createElement('div');
       element.className = `pin${spot.shared ? ' shared' : ''}${spot.radius_m ? ' fuzzy' : ''}`;
       element.innerHTML = `<span>${kindOf(spot.kind).emoji}</span>`;
-      element.title = spot.name;
-      element.addEventListener('click', (event) => {
+      wrapper.title = spot.name;
+      wrapper.appendChild(element);
+      wrapper.addEventListener('click', (event) => {
         event.stopPropagation();
         onSelect?.(spot);
       });
 
       markers.current.push(
-        new maplibregl.Marker({ element, anchor: 'bottom' })
+        new maplibregl.Marker({ element: wrapper, anchor: 'bottom' })
           .setLngLat([spot.lng, spot.lat])
           .addTo(map.current)
       );
@@ -183,17 +195,14 @@ export default function MapView({
    * Eén keer, want daarna is het jouw kaart: niemand wil dat hij terugspringt
    * zodra je hebt weggesleept.
    */
-  const fitToSpots = useCallback((punten, instant = true) => {
+  const fitToSpots = useCallback((punten) => {
     const bruikbaar = (punten || []).filter(
       (s) => Number.isFinite(s.lat) && Number.isFinite(s.lng)
     );
     if (!map.current || !bruikbaar.length) return false;
 
     if (bruikbaar.length === 1) {
-      map.current[instant ? 'jumpTo' : 'flyTo']({
-        center: [bruikbaar[0].lng, bruikbaar[0].lat],
-        zoom: 13,
-      });
+      map.current.jumpTo({ center: [bruikbaar[0].lng, bruikbaar[0].lat], zoom: 13 });
       return true;
     }
 
@@ -204,11 +213,11 @@ export default function MapView({
         [bruikbaar[0].lng, bruikbaar[0].lat]
       )
     );
-    map.current.fitBounds(bounds, {
-      padding: 64,
-      maxZoom: 14,
-      duration: instant ? 0 : 800,
-    });
+    // Bewust zonder animatie. Een geanimeerde flyTo leunt op de render-lus van
+    // de kaart, en die staat stil zolang de stijl niet geladen is — precies
+    // wanneer je hem het hardst nodig hebt: traag netwerk, tegelserver eruit.
+    // Dan blijft de knop hangen zonder dat er iets gebeurt.
+    map.current.fitBounds(bounds, { padding: 64, maxZoom: 14, duration: 0 });
     return true;
   }, []);
 
@@ -227,16 +236,35 @@ export default function MapView({
     });
   }, [follow]);
 
+  // Waar jij staat, als stip op de kaart. Zonder dit vliegt de kaart wel naar je
+  // toe, maar zie je niets — en dan weet je dus nog steeds niet waar je bent.
+  useEffect(() => {
+    if (here) setMyPos(here);
+  }, [here]);
+
+  useEffect(() => {
+    if (!map.current || !myPos) return;
+    if (!meMarker.current) {
+      const dot = document.createElement('div');
+      dot.className = 'here-dot';
+      dot.title = 'Hier sta jij';
+      meMarker.current = new maplibregl.Marker({ element: dot })
+        .setLngLat([myPos.lng, myPos.lat])
+        .addTo(map.current);
+    } else {
+      meMarker.current.setLngLat([myPos.lng, myPos.lat]);
+    }
+  }, [myPos]);
+
   const locate = () => {
     if (!navigator.geolocation) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLocating(false);
-        map.current?.flyTo({
-          center: [position.coords.longitude, position.coords.latitude],
-          zoom: 14,
-        });
+        const punt = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setMyPos(punt);
+        map.current?.jumpTo({ center: [punt.lng, punt.lat], zoom: 14 });
       },
       () => setLocating(false),
       { enableHighAccuracy: true, timeout: 10000 }
@@ -261,7 +289,7 @@ export default function MapView({
             {locating ? <span className="spinner" /> : '📍'}
           </button>
           {fit?.length > 0 && (
-            <button onClick={() => fitToSpots(fit, false)} title="Toon al mijn plekken">
+            <button onClick={() => fitToSpots(fit)} title="Toon al mijn plekken">
               ⛺
             </button>
           )}

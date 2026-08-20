@@ -29,3 +29,11 @@ create or replace function storage.foldername(p text) returns text[] language sq
 $$;
 
 grant usage on schema public, auth, storage to anon, authenticated;
+
+-- Belangrijk voor een eerlijke test: Supabase zet standaardrechten zo dat ELKE
+-- nieuwe tabel in "public" automatisch volledig toegankelijk wordt voor anon en
+-- authenticated. Als we dat hier niet nabootsen, kan anon er lokaal toch al niet
+-- bij en bewijst een test dat anon niets ziet helemaal niets. Met deze regel
+-- moet schema.sql die rechten actief weer afpakken — net als in het echt.
+alter default privileges in schema public grant all on tables to anon, authenticated;
+alter default privileges in schema public grant all on sequences to anon, authenticated;

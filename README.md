@@ -89,6 +89,30 @@ plek wees en jezelf als ontvanger opgeven, waarna je de exacte coördinaten
 kreeg. Eigenaar zijn van de share werd gecontroleerd, eigenaar zijn van de plek
 niet. Dat is dichtgezet in het schrijfbeleid én nog een keer bij het uitlezen.
 
+### "Maar de sleutel staat toch gewoon in de broncode?"
+
+Klopt, en dat is niet te verhelpen: een app die vanuit de browser met de
+database praat, moet die sleutel meesturen. Hij zit dus in de JavaScript die
+elke bezoeker binnenhaalt — repo publiek of niet. De vraag is daarom niet of
+iemand hem vindt, maar wat hij ermee kan. Twee gevallen, allebei getest:
+
+**Met alleen de sleutel** (geen account) is geen enkele tabel te lezen of te
+beschrijven. Niet "je krijgt een lege lijst" maar "de database weigert het".
+`anon` heeft nergens rechten op.
+
+**Met een zelfgemaakt account** heeft hij wél rechten op de tabellen — en dan
+is Row Level Security het enige dat hem tegenhoudt. Precies waarvoor het
+bedoeld is: hij ziet overal nul rijen, alleen zijn eigen profiel, en niets dat
+met hem gedeeld is.
+
+Dat laatste is het verschil met Paklijst en CATANIA. Daar is de sleutel de enige
+drempel, want het beleid staat op `anon_all`. Hier is de sleutel geen drempel en
+hoeft dat ook niet te zijn.
+
+De testopstelling bootst hiervoor bewust Supabase's standaardrechten na, die
+elke nieuwe tabel in `public` automatisch voor `anon` openzetten. Zonder die
+nabootsing kan `anon` er lokaal toch al niet bij en bewijst zo'n test niets.
+
 Wat goed geregeld is:
 
 - `camp_spots` is via Row Level Security strikt van de eigenaar. Andere accounts

@@ -436,3 +436,106 @@ $$;
 rollback;
 
 \echo 'Alle aanvallen afgeslagen.'
+
+-- ============================================================================
+-- De sleutel is geen wachtwoord
+-- ============================================================================
+-- De publishable key staat in de JavaScript die elke bezoeker binnenhaalt. Die
+-- is dus per definitie openbaar; daar valt niets aan te verbergen. De vraag is
+-- niet óf iemand hem vindt, maar wat hij ermee kan.
+--
+-- Hieronder speelt de rol "anon" precies dat: iemand met de sleutel, zonder
+-- account. Hij mag nergens bij, en niet doordat er toevallig niets staat maar
+-- doordat de database het weigert.
+\echo ''
+\echo '### Wat kan iemand met alleen de sleutel'
+
+do $$
+declare
+  tabel      text;
+  geweigerd  boolean;
+  n          int;
+begin
+  foreach tabel in array array[
+    'camp_spots', 'camp_visits', 'camp_shares', 'camp_share_views',
+    'camp_profiles', 'camp_friendships', 'camp_circles', 'camp_circle_members'
+  ] loop
+    geweigerd := false;
+    begin
+      set local role anon;
+      execute format('select count(*) from public.%I', tabel) into n;
+    exception when insufficient_privilege then
+      geweigerd := true;
+    end;
+    reset role;
+    if not geweigerd then
+      raise exception 'Met alleen de sleutel is % te lezen', tabel;
+    end if;
+  end loop;
+  raise notice 'Alleen de sleutel: alle acht tabellen geweigerd';
+end;
+$$;
+
+-- En schrijven al helemaal niet.
+do $$
+declare
+  gelukt boolean := false;
+begin
+  begin
+    set local role anon;
+    insert into public.camp_spots (owner_id, name, lat, lng)
+    values ('11111111-1111-1111-1111-111111111111', 'ingebroken', 0, 0);
+    gelukt := true;
+  exception when others then
+    gelukt := false;
+  end;
+  reset role;
+  if gelukt then
+    raise exception 'Met alleen de sleutel is er in camp_spots te schrijven';
+  end if;
+  raise notice 'Alleen de sleutel: schrijven geweigerd';
+end;
+$$;
+
+\echo 'De sleutel alleen levert niets op.'
+
+-- ---------------------------------------------------------------------------
+-- En als hij met die sleutel een account aanmaakt?
+-- ---------------------------------------------------------------------------
+-- Dat kan, tenzij je aanmelden dichtzet (zie SUPABASE_SETUP.md stap 5). Hij is
+-- dan "authenticated", en die rol heeft wél rechten op de tabellen. Vanaf hier
+-- is Row Level Security het enige dat hem tegenhoudt — precies waar het voor
+-- bedoeld is.
+begin;
+set local role authenticated;
+set local camp.test_uid = '99999999-9999-9999-9999-999999999999';
+do $$
+declare
+  tabel text;
+  n     int;
+begin
+  foreach tabel in array array[
+    'camp_spots', 'camp_visits', 'camp_shares', 'camp_share_views',
+    'camp_friendships', 'camp_circles'
+  ] loop
+    execute format('select count(*) from public.%I', tabel) into n;
+    if n <> 0 then
+      raise exception 'Een vers account ziet % rijen in %', n, tabel;
+    end if;
+  end loop;
+
+  -- Alleen het eigen profiel, en verder niemand.
+  select count(*) into n from public.camp_profiles;
+  if n > 1 then
+    raise exception 'Een vers account ziet % profielen', n;
+  end if;
+
+  -- En er is niets met hem gedeeld.
+  if jsonb_array_length(public.camp_shared_with_me()) <> 0 then
+    raise exception 'Een vers account krijgt gedeelde plekken te zien';
+  end if;
+
+  raise notice 'Met een eigen account: overal nul rijen';
+end;
+$$;
+commit;

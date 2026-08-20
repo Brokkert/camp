@@ -734,3 +734,60 @@ a { color: var(--water); }
   0% { transform: scale(0.7); opacity: 1; }
   100% { transform: scale(3); opacity: 0; }
 }
+
+/* ---------- zoeken op de kaart ---------- */
+
+.map-search {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 58px;
+  z-index: 6;
+}
+.map-search-bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: var(--paper-elev);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  padding: 5px 5px 5px 8px;
+  box-shadow: var(--shadow-lift);
+}
+.map-search-bar .input {
+  border: none;
+  background: none;
+  padding: 6px 2px;
+  font-size: 15px;
+}
+.map-search-bar .input:focus { border: none; }
+
+.map-search-results {
+  margin-top: 6px;
+  background: var(--paper-elev);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+  max-height: 46dvh;
+  overflow-y: auto;
+}
+.map-search-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.map-search-hit:last-child { border-bottom: none; }
+.map-search-hit:active { background: var(--paper-sunk); }
+
+.map-search-leeg {
+  padding: 11px 12px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  line-height: 1.5;
+}

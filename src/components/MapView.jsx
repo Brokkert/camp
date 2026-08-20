@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { kindOf } from '../data/taxonomy.js';
+import MapSearch from './MapSearch.jsx';
 
 // Alle drie gratis en zonder sleutel. OpenFreeMap draait op eigen kosten van
 // de maker en heeft geen limiet; de andere twee zijn rastertegels met een
@@ -78,6 +79,7 @@ export default function MapView({
   const [locateHint, setLocateHint] = useState(null);
   const hasFitted = useRef(false);
   const meMarker = useRef(null);
+  const [searching, setSearching] = useState(false);
   const [myPos, setMyPos] = useState(here);
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
@@ -318,6 +320,9 @@ export default function MapView({
           >
             🗺️
           </button>
+          <button onClick={() => setSearching(true)} title="Zoek een plaats">
+            🔍
+          </button>
           <button onClick={locate} title="Waar ben ik?">
             {locating ? <span className="spinner" /> : '📍'}
           </button>
@@ -328,6 +333,20 @@ export default function MapView({
           )}
         </div>
       )}
+      {interactive && searching && (
+        <MapSearch
+          near={myPos || (fit?.length ? fit[0] : null)}
+          onClose={() => setSearching(false)}
+          onChoose={(plek) => {
+            map.current?.jumpTo({ center: [plek.lng, plek.lat], zoom: 12 });
+            // In het plek-formulier betekent kiezen ook: neem dit punt over.
+            // Op het overzicht doet onPick niets tenzij je aan het aanwijzen
+            // bent, dus daar blijft het bij ernaartoe springen.
+            onPickRef.current?.({ lat: plek.lat, lng: plek.lng });
+          }}
+        />
+      )}
+
       {(locateHint || hint) && <div className="map-hint">{locateHint || hint}</div>}
     </div>
   );

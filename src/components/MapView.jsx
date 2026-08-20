@@ -110,6 +110,21 @@ export default function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * Maplibre meet zijn vak één keer, bij het opstarten, en houdt die maat vast.
+   * In een paneel dat omhoog schuift klopt die maat op dat moment nog niet: het
+   * canvas blijft dan te groot en je ziet maar een strookje kaart.
+   *
+   * Een ResizeObserver is hier beter dan het venster in de gaten houden, want
+   * het vak verandert ook van maat zonder dat het venster dat doet.
+   */
+  useEffect(() => {
+    if (!holder.current || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => map.current?.resize());
+    observer.observe(holder.current);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     if (!map.current) return;
     const chosen = BASEMAPS.find((b) => b.id === basemap) || BASEMAPS[0];

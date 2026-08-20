@@ -357,7 +357,10 @@ a { color: var(--water); }
 
 /* ---------- kaart ---------- */
 
-.mapwrap { position: relative; width: 100%; }
+/* Hoogte moet hier expliciet doorgegeven worden. Zonder dit verwijst de
+   height: 100% van .map naar een ouder zonder hoogte, en krijgt de kaart zijn
+   vak nooit te horen -- je ziet dan een strookje kaart in een leeg kader. */
+.mapwrap { position: relative; width: 100%; height: 100%; }
 .map { width: 100%; height: 100%; background: var(--paper-sunk); }
 .map-full { height: calc(100dvh - 126px - var(--safe-b)); }
 .map-inline {
